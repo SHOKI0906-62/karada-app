@@ -1,7 +1,7 @@
 """日本食品標準成分表（本表）の Excel から、アプリで使う data/foods.json を作る。
 
 使い方： python3 tools/convert_mext.py 本表.xlsx data/foods.json
-取り出すのは 食品番号・食品名・エネルギー(kcal)・たんぱく質・脂質・炭水化物（可食部100gあたり）。
+取り出すのは 食品番号・食品名・エネルギー(kcal)・たんぱく質・脂質・炭水化物・水分（可食部100gあたり）。
 """
 import json
 import re
@@ -9,8 +9,8 @@ import sys
 
 import openpyxl
 
-COL = {'group': 0, 'code': 1, 'name': 3, 'kcal': 6, 'p': 9, 'f': 12, 'c': 20}
-EXPECT = {6: 'ENERC_KCAL', 9: 'PROT-', 12: 'FAT-', 20: 'CHOCDF-'}
+COL = {'group': 0, 'code': 1, 'name': 3, 'kcal': 6, 'w': 7, 'p': 9, 'f': 12, 'c': 20}
+EXPECT = {6: 'ENERC_KCAL', 7: 'WATER', 9: 'PROT-', 12: 'FAT-', 20: 'CHOCDF-'}
 
 
 def num(v):
@@ -48,10 +48,11 @@ def main(src, dst):
             num(r[COL['p']]),
             num(r[COL['f']]),
             num(r[COL['c']]),
+            num(r[COL['w']]),
         ])
     out = {
         'source': '文部科学省「日本食品標準成分表（八訂）増補2023年」本表を加工して作成',
-        'columns': ['code', 'name', 'kcal', 'p', 'f', 'c'],
+        'columns': ['code', 'name', 'kcal', 'p', 'f', 'c', 'w'],
         'foods': foods,
     }
     with open(dst, 'w', encoding='utf-8') as fp:

@@ -30,8 +30,8 @@ export async function loadFoods() {
   if (foods) return foods;
   const res = await fetch('data/foods.json');
   const data = await res.json();
-  foods = data.foods.map(([code, name, kcal, p, f, c]) => ({
-    code, name, label: labelOf(name), kcal, p, f, c, key: norm(name),
+  foods = data.foods.map(([code, name, kcal, p, f, c, w]) => ({
+    code, name, label: labelOf(name), kcal, p, f, c, w: w || 0, key: norm(name),
   }));
   return foods;
 }

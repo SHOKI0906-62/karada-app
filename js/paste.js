@@ -2,11 +2,11 @@
 //
 // 形：
 //   #からだ記録
-//   ON365 オートミール 30g | 116kcal P3.0 F3.3 C20.3
+//   ON365 オートミール 30g | 116kcal P3.0 F3.3 C20.3 W3
 //   卵 全卵 生 50g | 71kcal P6.1 F5.1 C0.2
 //   合計: 187kcal P9.1 F8.4 C20.5
 //
-// ・「|」の右に数値があれば、その数値をそのまま使う
+// ・「|」の右に数値があれば、その数値をそのまま使う（W〇 は含まれる水分 g。なくてもよい）
 // ・数値がない行は name / amount / unit だけ返す（照合はアプリ側で行う）
 
 const UNITS = 'g|個|袋|本|杯|枚|切れ|ml|cc|パック|缶|食';
@@ -22,8 +22,9 @@ export function parseNutrients(text) {
   const p = grab(/(?:^|[^a-z])P\s*([\d.]+)/i);
   const f = grab(/(?:^|[^a-z])F\s*([\d.]+)/i);
   const c = grab(/(?:^|[^a-z])C\s*([\d.]+)/i);
+  const w = grab(/(?:^|[^a-z])W\s*([\d.]+)/i) ?? grab(/水分\s*([\d.]+)/); // 水分(g≒ml)
   if (kcal === null && p === null && f === null && c === null) return null;
-  return { kcal: kcal ?? 0, p: p ?? 0, f: f ?? 0, c: c ?? 0 };
+  return { kcal: kcal ?? 0, p: p ?? 0, f: f ?? 0, c: c ?? 0, w: w ?? 0 };
 }
 
 // 「卵 全卵 生 50g」→ { name:'卵 全卵 生', amount:50, unit:'g' }

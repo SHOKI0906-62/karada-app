@@ -1,5 +1,6 @@
 // 画面の動き。データの保存は store.js にまかせる。
 import * as store from './store.js';
+import { DEFAULT_PRESETS } from './defaults.js';
 import { loadFoods, searchFoods, recentFoods, rememberFood } from './foods.js';
 import { parseBlock, checkTotal } from './paste.js';
 
@@ -30,7 +31,8 @@ const num = (v) => {
 const r0 = (n) => Math.round(n).toLocaleString('ja-JP');
 const r1 = (n) => (Math.round(n * 10) / 10).toString();
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const sum = (arr) => arr.reduce((a, x) => ({ kcal: a.kcal + num(x.kcal), p: a.p + num(x.p), f: a.f + num(x.f), c: a.c + num(x.c) }), { kcal: 0, p: 0, f: 0, c: 0 });
+// w = 食べ物に含まれる水分(g≒ml)
+const sum = (arr) => arr.reduce((a, x) => ({ kcal: a.kcal + num(x.kcal), p: a.p + num(x.p), f: a.f + num(x.f), c: a.c + num(x.c), w: a.w + num(x.w) }), { kcal: 0, p: 0, f: 0, c: 0, w: 0 });
 const pfcText = (t) => `${r0(t.kcal)}kcal P${r1(t.p)} F${r1(t.f)} C${r1(t.c)}`;
 const isTmp = (p) => (p.items || []).some((it) => it.tmp);
 const TMP = '<span class="tmp">仮</span>';
@@ -49,7 +51,7 @@ store.initStore(async (user) => {
   $('#userInfo').textContent = user.local ? 'お試しモード（Firebase未設定）' : `ログイン中：${user.email}`;
   state.settings = await store.getSettings();
   fillSettingsForm();
-  store.watchPresets((list) => { state.presets = list.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)); renderPresets(); renderPresetList(); });
+  store.watchPresets((list) => { state.presets = list.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)); addWaterToOldPresets(); renderPresets(); renderPresetList(); });
   store.watchProducts((list) => { state.products = list.sort((a, b) => a.name.localeCompare(b.name, 'ja')); renderProducts(); });
   watchDay();
 }).catch(() => {
@@ -300,7 +302,7 @@ function productRecord(p) {
   const isG = p.basis === 'g';
   const calc = (amount) => {
     const k = isG ? amount / 100 : amount;
-    return { kcal: p.kcal * k, p: p.p * k, f: p.f * k, c: p.c * k };
+    return { kcal: p.kcal * k, p: p.p * k, f: p.f * k, c: p.c * k, w: (p.w || 0) * k };
   };
   openSheet(`<h3>${esc(p.name)}</h3>
     <p class="muted small">${basisLabel(p)}：${pfcText(p)}</p>
@@ -361,11 +363,24 @@ $('#openProductPick').addEventListener('click', () => {
 
 // ---------- 水分 ----------
 function renderWater() {
-  const total = state.water.reduce((a, w) => a + num(w.ml), 0);
+  const drank = state.water.reduce((a, w) => a + num(w.ml), 0);
+  const inFood = sum(state.logs.filter((l) => l.kind !== 'drink')).w; // 晩酌は数えない
+  const total = drank + inFood;
   const goal = state.settings.waterGoal || 2000;
   $('#waterTotal').textContent = r0(total);
   $('#waterGoal').textContent = r0(goal);
+  $('#waterBreak').textContent = `飲んだ水 ${r0(drank)} ＋ 食事の水分 ${r0(inFood)}`;
+  $('#waterFood').style.width = `${Math.min(100, (inFood / goal) * 100)}%`;
   $('#waterFill').style.width = `${Math.min(100, (total / goal) * 100)}%`;
+}
+
+// 前の版で作ったボタンには水分(w)がないので、初期ボタンと同じ名前なら中身を入れ直す（1回だけ起きる）
+function addWaterToOldPresets() {
+  for (const p of state.presets) {
+    if (!(p.items || []).some((it) => it.w === undefined)) continue;
+    const def = DEFAULT_PRESETS.find((d) => d.name === p.name);
+    if (def) store.savePreset({ id: p.id, items: def.items });
+  }
 }
 
 async function addWater(ml) {
@@ -413,13 +428,13 @@ function resolveItem(it) {
   });
   if (prod) {
     const k = prod.basis === 'g' ? it.amount / 100 : it.amount;
-    return { ok: true, label, src: `商品：${prod.name}`, kcal: prod.kcal * k, p: prod.p * k, f: prod.f * k, c: prod.c * k };
+    return { ok: true, label, src: `商品：${prod.name}`, kcal: prod.kcal * k, p: prod.p * k, f: prod.f * k, c: prod.c * k, w: (prod.w || 0) * k };
   }
   if (isWeight) {
     const fd = searchFoods(it.name, 1)[0];
     if (fd) {
       const k = it.amount / 100;
-      return { ok: true, label, src: `成分表：${fd.label}`, kcal: fd.kcal * k, p: fd.p * k, f: fd.f * k, c: fd.c * k };
+      return { ok: true, label, src: `成分表：${fd.label}`, kcal: fd.kcal * k, p: fd.p * k, f: fd.f * k, c: fd.c * k, w: fd.w * k };
     }
   }
   return { ok: false, label, src: '見つかりません（登録してください）', kcal: 0, p: 0, f: 0, c: 0, it };
@@ -439,7 +454,7 @@ async function openPaste(text = '') {
     const ng = rows.length - ok.length;
     if (!ok.length) return;
     if (ng && !confirm(`見つからない ${ng} 件は記録されません。よろしいですか？`)) return setTimeout(() => openPaste(f.get('text')), 0);
-    const items = ok.map((r) => ({ name: r.label, kcal: r.kcal, p: r.p, f: r.f, c: r.c }));
+    const items = ok.map((r) => ({ name: r.label, kcal: r.kcal, p: r.p, f: r.f, c: r.c, w: r.w || 0 }));
     record({ kind: 'food', name: `${title || '貼り付け'}（${items.length}品）`, ...sum(items), items });
   });
   const ta = $('#sheetForm [name=text]');
@@ -502,7 +517,7 @@ $('#openFoodSearch').addEventListener('click', async () => {
     const fd = state.foodList.find((x) => x.code === li.dataset.food);
     rememberFood(fd.code);
     $('#sheet').close();
-    productRecord({ name: fd.label, basis: 'g', kcal: fd.kcal, p: fd.p, f: fd.f, c: fd.c });
+    productRecord({ name: fd.label, basis: 'g', kcal: fd.kcal, p: fd.p, f: fd.f, c: fd.c, w: fd.w });
   });
   try {
     await loadFoods();

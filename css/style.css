@@ -14,6 +14,7 @@
   --over: #d23c3c;
   --zone: rgba(31, 122, 90, 0.16);
   --water: #2a9fd6;
+  --water-food: #8fd0ef;
   --warn-bg: #fff4d6;
   --warn: #7a5a00;
 }
@@ -34,6 +35,7 @@
     --over: #f06a6a;
     --zone: rgba(76, 192, 149, 0.2);
     --water: #5cc0f0;
+    --water-food: #2b6f8f;
     --warn-bg: #3a3218;
     --warn: #f0d98a;
   }
@@ -236,9 +238,10 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 /* 水分 */
 .water-head { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
 .water-head b { font-size: 20px; font-variant-numeric: tabular-nums; }
-.water .bar { margin: 8px 0 12px; }
+.water .bar { margin: 8px 0 4px; }
+.water-break { margin: 0 0 10px; }
 .water-grid { display: grid; grid-template-columns: repeat(3, 1fr) 64px; gap: 8px; }
-.water-grid .btn { margin: 0; color: var(--water); }
+.water-grid .btn { margin: 0; padding: 10px 2px; white-space: nowrap; color: var(--water); }
 .link-btn { border: none; background: none; color: var(--accent); font-size: 14px; padding: 8px 0 8px 8px; }
 
 /* 貼り付けて記録 */

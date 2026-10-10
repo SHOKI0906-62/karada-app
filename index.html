@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
   <!-- ログイン画面 -->
@@ -56,7 +56,8 @@
           <span>💧 水分　<b id="waterTotal">0</b> / <span id="waterGoal">2,000</span> ml</span>
           <button class="link-btn" id="waterListBtn">記録を見る</button>
         </div>
-        <div class="bar"><div class="fill" id="waterFill" style="background:var(--water)"></div></div>
+        <div class="bar"><div class="fill" id="waterFill" style="background:var(--water)"></div><div class="fill" id="waterFood" style="background:var(--water-food)"></div></div>
+        <p class="muted small water-break" id="waterBreak"></p>
         <div class="water-grid">
           <button class="btn" data-water="200">＋200</button>
           <button class="btn" data-water="350">＋350</button>
@@ -126,6 +127,6 @@
   <dialog id="sheet"><form method="dialog" id="sheetForm"></form></dialog>
   <div id="toast" class="toast" hidden><span id="toastText"></span><button id="toastUndo">取り消し</button></div>
 
-  <script type="module" src="js/app.js?v=5"></script>
+  <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>
