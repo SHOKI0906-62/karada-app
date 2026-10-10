@@ -35,7 +35,11 @@ export const saveProduct = (p) => (p.id ? backend.update('products', p.id, strip
 export const deleteProduct = (id) => backend.remove('products', id);
 export const savePreset = (p) => (p.id ? backend.update('presets', p.id, strip(p)) : backend.add('presets', p));
 export const deletePreset = (id) => backend.remove('presets', id);
-export const getSettings = async () => ({ ...DEFAULT_SETTINGS, ...((await backend.getMeta('settings')) || {}) });
+export async function getSettings() {
+  let saved = null;
+  try { saved = await backend.getMeta('settings'); } catch { /* 電波なし → 初期値で表示 */ }
+  return { ...DEFAULT_SETTINGS, ...(saved || {}) };
+}
 export const saveSettings = (s) => backend.setMeta('settings', s);
 export const exportAll = () => backend.exportAll();
 

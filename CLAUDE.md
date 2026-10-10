@@ -14,8 +14,8 @@
 
 ## 技術の決まりごと
 - ビルド不要の素のHTML/CSS/JavaScript（ES Modules）。フレームワークなし。
-- 公開：GitHub Pages
-- 保存：**Firebase（Firestore）で最初からiPhoneとタブレットを同期**
+- 公開：GitHub Pages（リポジトリ SHOKI0906-62/karada-app → https://shoki0906-62.github.io/karada-app/ ）
+- 保存：**Firebase（Firestore）で最初からiPhoneとタブレットを同期**（Firebaseプロジェクト：karada-app、設定済み）
   - ログインは「メール＋パスワード」（iPhoneのホーム画面アプリでも確実に動くため。Googleログインは使わない）
   - 新規登録画面は作らない。ユーザーはFirebaseコンソールで1人だけ作る
   - オフライン保存（persistentLocalCache）あり。電波がなくても記録でき、つながると同期

@@ -49,6 +49,11 @@ store.initStore(async (user) => {
   store.watchPresets((list) => { state.presets = list.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)); renderPresets(); renderPresetList(); });
   store.watchProducts((list) => { state.products = list.sort((a, b) => a.name.localeCompare(b.name, 'ja')); renderProducts(); });
   watchDay();
+}).catch(() => {
+  // Firebaseの部品が読み込めなかったとき（初回に電波がない など）
+  $('#login').hidden = false;
+  $('#loginForm').hidden = true;
+  $('#login').insertAdjacentHTML('beforeend', '<p class="card error">読み込みに失敗しました。電波のある場所で開き直してください。</p>');
 });
 
 $('#loginForm').addEventListener('submit', async (e) => {
