@@ -28,7 +28,7 @@
 - `index.html` 画面の骨組み / `css/style.css` 見た目（ダークモード対応）
 - `js/app.js` 画面の動き / `js/store.js` 保存係 / `js/defaults.js` 初期の目標値とボタン
 - `js/firebase-config.js` Firebaseの設定値 / `firestore.rules` データの鍵（本人だけ読み書き可）
-- `sw.js` オフライン用 / `manifest.webmanifest` ホーム画面アイコン用
+- `sw.js` オフライン用（同じサイトのファイルは毎回 no-cache で新しいか確認。大きく変えたら CACHE 名と index.html の `?v=` を上げる） / `manifest.webmanifest` ホーム画面アイコン用
 - `SETUP.md` Firebase と GitHub Pages の準備手順（本人向け）
 
 ## データの形（Firestore）

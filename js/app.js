@@ -437,4 +437,4 @@ function showToast(text, undo) {
   toastTimer = setTimeout(() => ($('#toast').hidden = true), 4000);
 }
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
