@@ -31,7 +31,7 @@ const num = (v) => {
 const r0 = (n) => Math.round(n).toLocaleString('ja-JP');
 const r1 = (n) => (Math.round(n * 10) / 10).toString();
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-// w = 食べ物に含まれる水分(g≒ml)
+// w = 料理や飲み物に自分で加えた水(ml)
 const sum = (arr) => arr.reduce((a, x) => ({ kcal: a.kcal + num(x.kcal), p: a.p + num(x.p), f: a.f + num(x.f), c: a.c + num(x.c), w: a.w + num(x.w) }), { kcal: 0, p: 0, f: 0, c: 0, w: 0 });
 const pfcText = (t) => `${r0(t.kcal)}kcal P${r1(t.p)} F${r1(t.f)} C${r1(t.c)}`;
 const isTmp = (p) => (p.items || []).some((it) => it.tmp);
@@ -364,22 +364,24 @@ $('#openProductPick').addEventListener('click', () => {
 // ---------- 水分 ----------
 function renderWater() {
   const drank = state.water.reduce((a, w) => a + num(w.ml), 0);
-  const inFood = sum(state.logs.filter((l) => l.kind !== 'drink')).w; // 晩酌は数えない
+  const inFood = sum(state.logs.filter((l) => l.kind !== 'drink')).w; // 料理に使った水。晩酌は数えない
   const total = drank + inFood;
   const goal = state.settings.waterGoal || 2000;
   $('#waterTotal').textContent = r0(total);
   $('#waterGoal').textContent = r0(goal);
-  $('#waterBreak').textContent = `飲んだ水 ${r0(drank)} ＋ 食事の水分 ${r0(inFood)}`;
+  $('#waterBreak').textContent = `飲んだ水 ${r0(drank)} ＋ 料理に使った水 ${r0(inFood)}`;
   $('#waterFood').style.width = `${Math.min(100, (inFood / goal) * 100)}%`;
   $('#waterFill').style.width = `${Math.min(100, (total / goal) * 100)}%`;
 }
 
-// 前の版で作ったボタンには水分(w)がないので、初期ボタンと同じ名前なら中身を入れ直す（1回だけ起きる）
+// 初期ボタンと同じ名前のボタンで、水(w)の量が初期値と違えば中身を入れ直す
+// （前の版のボタンを今の決まりに合わせるため。合っていれば何もしない）
 function addWaterToOldPresets() {
   for (const p of state.presets) {
-    if (!(p.items || []).some((it) => it.w === undefined)) continue;
     const def = DEFAULT_PRESETS.find((d) => d.name === p.name);
-    if (def) store.savePreset({ id: p.id, items: def.items });
+    if (!def) continue;
+    const ws = (items) => (items || []).map((it) => num(it.w)).join(',');
+    if (ws(p.items) !== ws(def.items)) store.savePreset({ id: p.id, items: def.items });
   }
 }
 
@@ -414,6 +416,10 @@ const UNIT_WEIGHT = ['g', 'ml', 'cc'];
 // 数値がない行を、自分の商品 → 成分表 の順でさがして計算する
 function resolveItem(it) {
   const label = it.amount !== null ? `${it.name} ${r1(it.amount)}${it.unit}` : it.name;
+  // 「水 200ml」「お湯 150ml」の行は、料理に使った水として水分に数える
+  if (/^(水|お湯|湯|白湯|水道水|ミネラルウォーター)$/.test(String(it.name).trim()) && UNIT_WEIGHT.includes(it.unit)) {
+    return { ok: true, label, src: '水（水分に数えます）', kcal: 0, p: 0, f: 0, c: 0, w: it.amount };
+  }
   if (it.nut) return { ok: true, label, src: '書いてある数値', ...it.nut };
   const key = normName(it.name);
   const isCount = UNIT_COUNT.includes(it.unit);
@@ -434,7 +440,7 @@ function resolveItem(it) {
     const fd = searchFoods(it.name, 1)[0];
     if (fd) {
       const k = it.amount / 100;
-      return { ok: true, label, src: `成分表：${fd.label}`, kcal: fd.kcal * k, p: fd.p * k, f: fd.f * k, c: fd.c * k, w: fd.w * k };
+      return { ok: true, label, src: `成分表：${fd.label}`, kcal: fd.kcal * k, p: fd.p * k, f: fd.f * k, c: fd.c * k };
     }
   }
   return { ok: false, label, src: '見つかりません（登録してください）', kcal: 0, p: 0, f: 0, c: 0, it };
@@ -517,7 +523,7 @@ $('#openFoodSearch').addEventListener('click', async () => {
     const fd = state.foodList.find((x) => x.code === li.dataset.food);
     rememberFood(fd.code);
     $('#sheet').close();
-    productRecord({ name: fd.label, basis: 'g', kcal: fd.kcal, p: fd.p, f: fd.f, c: fd.c, w: fd.w });
+    productRecord({ name: fd.label, basis: 'g', kcal: fd.kcal, p: fd.p, f: fd.f, c: fd.c });
   });
   try {
     await loadFoods();
