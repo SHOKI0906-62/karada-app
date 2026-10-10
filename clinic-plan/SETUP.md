@@ -16,7 +16,7 @@
 リポジトリ ＝ アプリのプログラムを置く箱です。
 
 1. https://github.com/new を開く（shoki0906-62 でログイン）
-2. Repository name：例 `seiki-app`（好きな名前でOK。英小文字とハイフン）
+2. Repository name：決めた名前（英小文字・数字・ハイフンだけ。日本語は使えません）
 3. **Public** を選ぶ（無料で GitHub Pages を使うため。中身はプログラムだけで、お客さんのデータは入りません）
 4. 「Add a README file」にチェック → Create repository
 5. Claude がこのリポジトリを触れるようにする：

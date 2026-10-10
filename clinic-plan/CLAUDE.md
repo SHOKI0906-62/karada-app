@@ -26,7 +26,7 @@
 
 ## 技術の決まりごと（karada-app と同じ作り方）
 - ビルド不要の素のHTML/CSS/JavaScript（ES Modules）。フレームワークなし
-- 公開：GitHub Pages（リポジトリ名は未定 → 決まったら記入）
+- 公開：GitHub Pages（リポジトリ名：**未定**。2026-10-10の返事が「〇〇」のままだったので確認中 → 決まったら記入）
 - 保存：Firebase（Firestore）。iPhone とタブレットを同期。Firebase SDK は gstatic の CDN から読み込む
 - 画面(app.js)は保存係(store.js)の関数だけを使う
 - `firebase-config.js` が空なら「お試しモード」（localStorage・ダミーデータ）で動く。本物のお客さん情報はお試しモードに入れない
@@ -39,7 +39,7 @@
 ### Google カレンダー連携
 - **Google Apps Script（GAS）** を使う。t.shoki16 のアカウントで動く小さなプログラムで、アプリから「予定を作って／変えて／消して」と頼むと、カレンダー「昇起施術所 予約」に反映する
   - 理由：アプリ側で Google ログインをしなくてよい（iPhone のホーム画面アプリでも確実）。無料で使える
-- カレンダーの予定に入れるのは **「名前＋コース」だけ**（例：山田様 90分）。健康の情報は入れない
+- カレンダーの予定の名前は **「名字＋下の名前の頭文字＋コース」だけ**（例：田中K 90分）。健康の情報は入れない（2026-10-10決定）
 - 通知：開始1時間前
 - 合言葉（秘密の文字列）で本人のアプリからの依頼だけ受け付ける。合言葉はコードに書かず、ログイン後に Firestore から読む
 - 予定のIDを予約データに保存し、変更・キャンセルのときに同じ予定を直す／消す
@@ -57,11 +57,13 @@
 - 個人情報保護法：健康の情報は「要配慮個人情報」。初回に同意をもらう（問診票などに一文）
 
 ## データの形（Firestore・案）
-- `users/{uid}/clients/{id}` 顧客：`{name, kana?, ageGroup:'40代', gender, height, weight, job:'経営者'|'会社員'|…, referral:{type:'person'|'card'|'other', clientId?, name?}, firstVisit:'YYYY-MM-DD', memo, createdAt}`
+- `users/{uid}/clients/{id}` 顧客：`{lastName:'田中', firstName:'健一', initial:'K', kana?, ageGroup:'40代', gender, height, weight, job:'経営者'|'会社員'|…, referral:{type:'person'|'card'|'other', clientId?, name?}, firstVisit:'YYYY-MM-DD', memo, createdAt}`
   - 住所・生年月日・電話番号・会社名は**入れない**
+  - initial（下の名前の頭文字・ローマ字大文字1文字）はカレンダー用。A〜Zのボタンで選ぶ
 - `users/{uid}/reservations/{id}` 予約：`{date, start:'HH:MM', clientId, course:60|90|120, status:'booked'|'done'|'cancelled', calEventId, calSync:'ok'|'pending'|'error'}`
-- `users/{uid}/visits/{id}` 来院記録（カルテ）：`{date, clientId, reservationId?, course, complaint, areas[], points[], memo, payment:'現金'|'カード'|'QR'|'振込'|'無料招待', amount, freeInvite:boolean}`
-  - 招待カード「60分無料」は amount:0・freeInvite:true
+- `users/{uid}/visits/{id}` 来院記録（カルテ）：`{date, clientId, reservationId?, course, complaint, areas[], points[], memo, payment:'現金'|'振込'|'無料招待', amount, freeInvite:boolean}`
+  - 支払い方法は **現金・振込・無料招待の3つ**（2026-10-10決定）
+  - 招待カード「60分無料」は payment:'無料招待'・amount:0・freeInvite:true
 - `users/{uid}/meta/settings` コース・料金・職業や部位のボタン一覧・GAS の URL と合言葉
 - 集計（月別売上など）は保存せず、visits から毎回計算する
 
@@ -70,7 +72,7 @@
 - 無料招待→有料リピート：初回が無料招待で、そのあと有料の来院が1回以上ある人の数
 
 ## 作る順番
-- [ ] ステップ0：本人の準備（GitHub・Firebase・Google カレンダー）→ SETUP.md
+- [ ] ステップ0：本人の準備（GitHub・Firebase・Google カレンダー）→ SETUP.md（2026-10-10 開始）
 - [ ] ステップ1：土台＋顧客台帳＋バックアップ
   - ログイン、セキュリティルール、未ログインで読めないことのテスト
   - 顧客の登録・編集・一覧・検索（年代・性別・職業・紹介元はボタンで選ぶ）
@@ -85,5 +87,5 @@
   - お客さんごとの来院履歴一覧
 - [ ] ステップ4：売上・集計
   - 月別売上、コース別、紹介元別、来院回数、リピート率、無料招待→有料リピート人数
-  - CSV 書き出し（確定申告用）
+  - 確定申告用のCSV書き出しは**作らない**（2026-10-10決定）
 - [ ] ステップ5（あとで）：バックアップの暗号化・読み込み（復元）、アプリを開くときの PIN など
