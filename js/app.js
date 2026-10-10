@@ -56,14 +56,25 @@ store.initStore(async (user) => {
   $('#login').insertAdjacentHTML('beforeend', '<p class="card error">読み込みに失敗しました。電波のある場所で開き直してください。</p>');
 });
 
+$('#showPw').addEventListener('change', (e) => ($('#loginForm [name=pw]').type = e.target.checked ? 'text' : 'password'));
 $('#loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = new FormData(e.target);
   $('#loginError').textContent = '';
   try {
-    await store.signIn(f.get('email'), f.get('pw'));
-  } catch {
-    $('#loginError').textContent = 'ログインできませんでした。メールとパスワードを確認してください。';
+    await store.signIn(String(f.get('email')).trim(), f.get('pw'));
+  } catch (err) {
+    const code = err?.code || '';
+    const msg = {
+      'auth/invalid-credential': 'メールかパスワードが違います（大文字・小文字、自動入力された古いパスワードに注意）',
+      'auth/wrong-password': 'パスワードが違います',
+      'auth/user-not-found': 'このメールのユーザーがいません',
+      'auth/invalid-email': 'メールアドレスの形が正しくありません',
+      'auth/too-many-requests': '失敗が続いたため一時的にロックされています。数分待ってから試してください',
+      'auth/network-request-failed': '通信できませんでした。電波を確認してください',
+      'auth/unauthorized-domain': 'このURLがFirebaseで許可されていません（承認済みドメイン）',
+    }[code] || 'ログインできませんでした';
+    $('#loginError').textContent = `${msg}${code ? `（${code}）` : ''}`;
   }
 });
 
