@@ -26,7 +26,7 @@
 
 ## 技術の決まりごと（karada-app と同じ作り方）
 - ビルド不要の素のHTML/CSS/JavaScript（ES Modules）。フレームワークなし
-- 公開：GitHub Pages（リポジトリ名：**未定**。2026-10-10の返事が「〇〇」のままだったので確認中 → 決まったら記入）
+- 公開：GitHub Pages（リポジトリ SHOKI0906-62/shoki-app → https://shoki0906-62.github.io/shoki-app/ ）
 - 保存：Firebase（Firestore）。iPhone とタブレットを同期。Firebase SDK は gstatic の CDN から読み込む
 - 画面(app.js)は保存係(store.js)の関数だけを使う
 - `firebase-config.js` が空なら「お試しモード」（localStorage・ダミーデータ）で動く。本物のお客さん情報はお試しモードに入れない
@@ -61,8 +61,8 @@
   - 住所・生年月日・電話番号・会社名は**入れない**
   - initial（下の名前の頭文字・ローマ字大文字1文字）はカレンダー用。A〜Zのボタンで選ぶ
 - `users/{uid}/reservations/{id}` 予約：`{date, start:'HH:MM', clientId, course:60|90|120, status:'booked'|'done'|'cancelled', calEventId, calSync:'ok'|'pending'|'error'}`
-- `users/{uid}/visits/{id}` 来院記録（カルテ）：`{date, clientId, reservationId?, course, complaint, areas[], points[], memo, payment:'現金'|'振込'|'無料招待', amount, freeInvite:boolean}`
-  - 支払い方法は **現金・振込・無料招待の3つ**（2026-10-10決定）
+- `users/{uid}/visits/{id}` 来院記録（カルテ）：`{date, clientId, reservationId?, course, complaint, areas[], points[], memo, payment:'現金'|'無料招待', amount, freeInvite:boolean}`
+  - 支払い方法は **現金・無料招待の2つ**（2026-10-10決定）
   - 招待カード「60分無料」は payment:'無料招待'・amount:0・freeInvite:true
 - `users/{uid}/meta/settings` コース・料金・職業や部位のボタン一覧・GAS の URL と合言葉
 - 集計（月別売上など）は保存せず、visits から毎回計算する

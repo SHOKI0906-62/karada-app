@@ -16,13 +16,13 @@
 リポジトリ ＝ アプリのプログラムを置く箱です。
 
 1. https://github.com/new を開く（shoki0906-62 でログイン）
-2. Repository name：決めた名前（英小文字・数字・ハイフンだけ。日本語は使えません）
+2. Repository name：`shoki-app`
 3. **Public** を選ぶ（無料で GitHub Pages を使うため。中身はプログラムだけで、お客さんのデータは入りません）
 4. 「Add a README file」にチェック → Create repository
 5. Claude がこのリポジトリを触れるようにする：
    https://github.com/apps/claude/installations/select_target → shoki0906-62 → 「Only select repositories」に新しいリポジトリを追加 → Save
 
-→ **リポジトリ名を Claude に教えてください。**
+→ 作れたら Claude に「作った」と伝えてください。
 
 ---
 
@@ -82,7 +82,7 @@ Firebase ＝ データを保存して、iPhone とタブレットを同期して
 ---
 
 ## Claude に送るもの（まとめ）
-- [ ] GitHub のリポジトリ名
+- [x] GitHub のリポジトリ名（shoki-app に決定）
 - [ ] firebaseConfig の中身
 - [ ] ユーザー UID
 - [ ] カレンダー ID
