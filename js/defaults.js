@@ -47,7 +47,7 @@ export const DEFAULT_PRESETS = [
       CHICKEN50,
       EGG,
       item('乾燥わかめ 5g', 9, 0.9, 0.2, 2.1),
-      item('黒千石納豆 1個（30g・タレなし）', 57, 5.0, 3.0, 3.6, true),
+      item('黒千石納豆 1個（30g・タレなし）', 52, 4.8, 2.5, 3.8), // あづま食品 黒千石小粒 納豆30gのみの表示
       item('本つゆ 大さじ1（15ml）', 16, 0.5, 0.0, 3.5), // キッコーマン本つゆ 表示：大さじ1あたり
       OLIVE14,
       SESAME2,
@@ -65,9 +65,9 @@ export const DEFAULT_PRESETS = [
   { kind: 'drink', order: 11, name: 'PSB 350ml', items: [item('パーフェクトサントリービール 350ml', 112, 0.7, 0.0, 1.4)] },
   { kind: 'drink', order: 12, name: '焼酎ハイボール 226ml', items: [item('すごむぎ60ml＋ソーダ', 84, 0.0, 0.0, 0.0)] },
   { kind: 'drink', order: 15, name: '焼酎ロック 30ml', items: [item('すごむぎ25度 30ml', 42, 0.0, 0.0, 0.0)] },
-  // アルパカ赤：度数13%として計算（100mlあたり約75kcal）
-  { kind: 'drink', order: 13, name: 'アルパカ赤 ½本', items: [item('アルパカ 赤 375ml', 281, 0.7, 0.0, 5.6, true)] },
-  { kind: 'drink', order: 14, name: 'アルパカ赤 1本', items: [item('アルパカ 赤 750ml', 563, 1.5, 0.0, 11.3, true)] },
+  // アルパカ赤：度数13%（本人確認済み）で計算（100mlあたり約75kcal）
+  { kind: 'drink', order: 13, name: 'アルパカ赤 ½本', items: [item('アルパカ 赤 375ml', 281, 0.7, 0.0, 5.6)] },
+  { kind: 'drink', order: 14, name: 'アルパカ赤 1本', items: [item('アルパカ 赤 750ml', 563, 1.5, 0.0, 11.3)] },
 ];
 
 // 最初から登録しておく商品（パッケージの表示を100gあたりに直した値）
