@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
   <!-- ログイン画面 -->
@@ -57,8 +57,9 @@
       <h2>晩酌</h2>
       <div id="drinkButtons" class="grid drink-grid"></div>
 
+      <button class="btn big" id="openFoodSearch">🥬 食材をさがす（成分表）</button>
       <div class="grid two">
-        <button class="btn" id="openProductPick">🔍 商品から記録</button>
+        <button class="btn" id="openProductPick">🛒 商品から記録</button>
         <button class="btn" id="openManual">✏️ 数字を直接入力</button>
       </div>
 
@@ -109,6 +110,6 @@
   <dialog id="sheet"><form method="dialog" id="sheetForm"></form></dialog>
   <div id="toast" class="toast" hidden><span id="toastText"></span><button id="toastUndo">取り消し</button></div>
 
-  <script type="module" src="js/app.js?v=3"></script>
+  <script type="module" src="js/app.js?v=4"></script>
 </body>
 </html>

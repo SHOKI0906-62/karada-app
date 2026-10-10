@@ -30,6 +30,7 @@
 - `index.html` 画面の骨組み / `css/style.css` 見た目（ダークモード対応）
 - `js/app.js` 画面の動き / `js/store.js` 保存係 / `js/defaults.js` 初期の目標値とボタン
 - `js/firebase-config.js` Firebaseの設定値 / `firestore.rules` データの鍵（本人だけ読み書き可）
+- `js/foods.js` 成分表の検索 / `data/foods.json` 成分表データ / `tools/convert_mext.py` Excel→JSON変換
 - `sw.js` オフライン用（同じサイトのファイルは毎回 no-cache で新しいか確認。大きく変えたら CACHE 名と index.html の `?v=` を上げる） / `manifest.webmanifest` ホーム画面アイコン用
 - `SETUP.md` Firebase と GitHub Pages の準備手順（本人向け）
 
@@ -76,8 +77,13 @@
 
 ## 作る順番
 - [x] ステップ1：ホーム（kcal・PFCバー・夜の脂質）、いつものボタン、晩酌ボタン、商品登録、直接入力、取り消し、Firebase同期
-- [ ] ステップ2：食品成分表から食材検索（重さ入力で自動計算）
-  - 注意：この開発環境からは mext.go.jp に接続できない。成分表のExcelは本人にダウンロードしてもらい、リポジトリに入れてからJSONに変換する
+- [x] ステップ2：食品成分表から食材検索（重さ入力で自動計算）
+  - 元データ：本人がダウンロードした `20260327-mxt_kagsei-mext-000029402_02.xlsx`（八訂 増補2023年 本表、2,538品目）
+  - `python3 tools/convert_mext.py 本表.xlsx data/foods.json` で変換（Excel自体はリポジトリに入れない）
+  - 使う列：エネルギー(kcal)・たんぱく質(PROT-)・脂質(FAT-)・炭水化物(CHOCDF-)＝パッケージ表示と同じ種類。'Tr'と'-'は0、'(数値)'は推定値として数値を使う
+  - 検索は `js/foods.js`：カタカナ/ひらがな・全角/半角を区別しない。スペース区切りで絞り込み。鶏→にわとり などの言い換え表あり
+  - 選んだあとは商品と同じ「重さ(g)入力」画面を使う。最近使った食材は端末ごとに localStorage に記憶
+  - 注意：この開発環境からは mext.go.jp に接続できない（データ更新時は本人にExcelを送ってもらう）
 - [ ] ステップ3：トレのチェック（腕立て／懸垂／カエル腹筋＋ブルガリアンスクワット、マウンテンクライマー）と体組成（週1：体重・体脂肪率・骨格筋量）＋推移グラフ
 - [ ] ステップ4：消費カロリー
   - HUAWEI WATCH GT4 は外部連携が難しいので、まず数字を手入力

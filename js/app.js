@@ -1,5 +1,6 @@
 // 画面の動き。データの保存は store.js にまかせる。
 import * as store from './store.js';
+import { loadFoods, searchFoods, recentFoods, rememberFood } from './foods.js';
 
 const $ = (s) => document.querySelector(s);
 const state = {
@@ -350,6 +351,42 @@ $('#openProductPick').addEventListener('click', () => {
     productRecord(state.products.find((p) => p.id === li.dataset.pick));
   });
   draw();
+});
+
+// ---------- 食材をさがす（食品成分表） ----------
+$('#openFoodSearch').addEventListener('click', async () => {
+  openSheet(`<h3>食材をさがす</h3>
+    <input class="search" name="q" type="search" placeholder="例：鶏 むね、ごはん、バナナ" autocomplete="off">
+    <p class="muted small" id="foodHint">読み込み中…</p>
+    <ul class="list pick-list" id="foodList"></ul>
+    <button class="btn" value="cancel" formnovalidate>閉じる</button>`, () => {});
+  const q = $('#sheetForm [name=q]');
+  const per100 = (fd) => `100gあたり ${pfcText(fd)}`;
+  const draw = () => {
+    const words = q.value.trim();
+    const list = words ? searchFoods(words) : recentFoods();
+    $('#foodHint').textContent = words
+      ? (list.length ? `${list.length}件${list.length >= 60 ? '以上（言葉を足すとしぼれます）' : ''}` : '見つかりません。ひらがなや別の言い方でも試してください')
+      : (list.length ? '最近使った食材' : 'スペースで区切ると しぼりこめます（例：鶏 むね 皮なし）');
+    $('#foodList').innerHTML = list.map((fd) => `<li data-food="${fd.code}"><div class="main"><div class="title">${esc(fd.label)}</div><div class="meta">${per100(fd)}</div></div></li>`).join('');
+    state.foodList = list;
+  };
+  q.addEventListener('input', draw);
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); q.blur(); } });
+  $('#foodList').addEventListener('click', (e) => {
+    const li = e.target.closest('[data-food]');
+    if (!li) return;
+    const fd = state.foodList.find((x) => x.code === li.dataset.food);
+    rememberFood(fd.code);
+    $('#sheet').close();
+    productRecord({ name: fd.label, basis: 'g', kcal: fd.kcal, p: fd.p, f: fd.f, c: fd.c });
+  });
+  try {
+    await loadFoods();
+    draw();
+  } catch {
+    $('#foodHint').textContent = '成分表を読み込めませんでした。電波のある場所で開き直してください';
+  }
 });
 
 // ---------- 設定 ----------
