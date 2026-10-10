@@ -24,14 +24,15 @@
 1. https://console.firebase.google.com を Google アカウントで開く
 2. **プロジェクトを追加** → 名前は `karada` など → Google アナリティクスは「オフ」でOK
 3. **ログインの準備**
-   - 左メニュー「構築 → Authentication」→「始める」
+   - 左上「≡」→「セキュリティ」→「Authentication」→「始める」
+   - ※ Firebaseの画面に入るには、Googleアカウントの2段階認証が必要
    - 「ログイン方法」→「メール/パスワード」→ 有効にする → 保存
    - 「ユーザー」タブ →「ユーザーを追加」→ 自分のメールアドレスとパスワードを入れる
      （このメール・パスワードでアプリにログインします）
-   - 「設定」タブ →「承認済みドメイン」→「ドメインの追加」→ `（あなたのID）.github.io`
 4. **データの保管庫**
-   - 左メニュー「構築 → Firestore Database」→「データベースを作成」
-   - 場所：`asia-northeast1（東京）`
+   - 左上「≡」→「Database と Storage」→「Firestore」→「データベースを作成」
+     （直接開くURL：https://console.firebase.google.com/project/karada-app/firestore ）
+   - 場所：`asia-northeast1（東京）`（選べないときはそのままでOK）
    - 「本番環境モード」で開始
    - 「ルール」タブを開き、中身を全部消して、下をそのまま貼り付けて「公開」
 

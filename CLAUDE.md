@@ -17,7 +17,9 @@
 - 公開：GitHub Pages（リポジトリ SHOKI0906-62/karada-app → https://shoki0906-62.github.io/karada-app/ ）
 - 保存：**Firebase（Firestore）で最初からiPhoneとタブレットを同期**（Firebaseプロジェクト：karada-app、設定済み）
   - ログインは「メール＋パスワード」（iPhoneのホーム画面アプリでも確実に動くため。Googleログインは使わない）
-  - 新規登録画面は作らない。ユーザーはFirebaseコンソールで1人だけ作る
+  - 新規登録画面は作らない。ユーザーはFirebaseコンソールで1人だけ作る（golf.shoki.1987@gmail.com 登録済み）
+  - メール＋パスワードなので「承認済みドメイン」の追加は不要
+  - 2026-10-10：タブレットでログイン成功を確認
   - オフライン保存（persistentLocalCache）あり。電波がなくても記録でき、つながると同期
   - Firebase SDK は gstatic の CDN（v10.14.1）から読み込む
   - セキュリティルール（firestore.rules）：ログインした本人のデータ `users/{自分のuid}/...` だけ読み書きできる。それ以外は全部拒否
