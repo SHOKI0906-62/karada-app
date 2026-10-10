@@ -218,3 +218,11 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 }
 .toast span { flex: 1; }
 .toast button { background: #fff; color: #222; border: none; border-radius: 10px; padding: 10px 14px; font-weight: 700; }
+
+/* 「仮」の数値のしるし */
+.tmp {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border-radius: 6px; font-size: 12px; font-weight: 700; vertical-align: 2px;
+  background: #fff1c2; color: #7a5a00;
+}
+@media (prefers-color-scheme: dark) { .tmp { background: #4a3d12; color: #f3d77a; } }

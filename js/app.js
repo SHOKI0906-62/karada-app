@@ -29,6 +29,8 @@ const r1 = (n) => (Math.round(n * 10) / 10).toString();
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const sum = (arr) => arr.reduce((a, x) => ({ kcal: a.kcal + num(x.kcal), p: a.p + num(x.p), f: a.f + num(x.f), c: a.c + num(x.c) }), { kcal: 0, p: 0, f: 0, c: 0 });
 const pfcText = (t) => `${r0(t.kcal)}kcal P${r1(t.p)} F${r1(t.f)} C${r1(t.c)}`;
+const isTmp = (p) => (p.items || []).some((it) => it.tmp);
+const TMP = '<span class="tmp">仮</span>';
 const hourOf = (time) => parseInt(String(time || '0').split(':')[0], 10);
 
 // ---------- 起動 ----------
@@ -159,7 +161,7 @@ function renderPresets() {
     const t = sum(p.items || []);
     const n = count(p.id);
     return `<button class="quick" data-preset="${p.id}">
-      <span class="name">${esc(p.name)}</span>
+      <span class="name">${esc(p.name)}${isTmp(p) ? TMP : ''}</span>
       <span class="meta">${r0(t.kcal)}kcal${p.kind === 'drink' ? '' : ` · F${r1(t.f)}`}${n ? ` <span class="count">×${n}</span>` : ''}</span>
     </button>`;
   };
@@ -362,7 +364,7 @@ $('#settingsForm').addEventListener('submit', async (e) => {
 
 function renderPresetList() {
   $('#presetList').innerHTML = state.presets.map((p) => `<li>
-      <div class="main"><div class="title">${p.kind === 'drink' ? '🍺 ' : ''}${esc(p.name)}</div><div class="meta">${pfcText(sum(p.items || []))}</div></div>
+      <div class="main"><div class="title">${p.kind === 'drink' ? '🍺 ' : ''}${esc(p.name)}${isTmp(p) ? TMP : ''}</div><div class="meta">${pfcText(sum(p.items || []))}</div></div>
       <button data-edit-preset="${p.id}">編集</button>
     </li>`).join('');
 }
@@ -370,7 +372,7 @@ $('#presetList').addEventListener('click', (e) => {
   const b = e.target.closest('[data-edit-preset]');
   if (!b) return;
   const p = state.presets.find((x) => x.id === b.dataset.editPreset);
-  const items = (p.items || []).map((it) => `<li><div class="main"><div class="title">${esc(it.name)}</div><div class="meta">${pfcText(it)}</div></div></li>`).join('');
+  const items = (p.items || []).map((it) => `<li><div class="main"><div class="title">${esc(it.name)}${it.tmp ? TMP : ''}</div><div class="meta">${pfcText(it)}</div></div></li>`).join('');
   openSheet(`<h3>ボタンを編集</h3>
     <label>ボタンの名前<input name="name" value="${esc(p.name)}" required></label>
     <label>並び順（小さいほど前）<input name="order" inputmode="numeric" value="${p.order ?? 50}"></label>

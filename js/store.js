@@ -8,7 +8,7 @@
 //   users/{uid}/presets/{id}   … いつものボタン・晩酌ボタン
 //   users/{uid}/meta/settings  … 目標値など
 import { firebaseConfig } from './firebase-config.js';
-import { DEFAULT_SETTINGS, DEFAULT_PRESETS } from './defaults.js';
+import { DEFAULT_SETTINGS, DEFAULT_PRESETS, DEFAULT_PRODUCTS } from './defaults.js';
 
 const FB = 'https://www.gstatic.com/firebasejs/10.14.1/';
 export const isLocalMode = !firebaseConfig.apiKey;
@@ -44,12 +44,13 @@ function strip(obj) {
   return rest;
 }
 
-// 初めて使うときに、いつものボタンを入れておく
+// 初めて使うときに、いつものボタンと商品を入れておく
 async function seedIfEmpty() {
   let meta;
   try { meta = (await backend.getMeta('seed')) || {}; } catch { return; } // 電波なしのときは次回に
   if (meta.done) return;
   for (const p of DEFAULT_PRESETS) await backend.add('presets', p);
+  for (const p of DEFAULT_PRODUCTS) await backend.add('products', p);
   await backend.setMeta('seed', { done: true });
 }
 
