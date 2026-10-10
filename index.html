@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
   <!-- ログイン画面 -->
@@ -51,12 +51,27 @@
 
       <div class="card" id="bars"></div>
 
+      <div class="card water">
+        <div class="water-head">
+          <span>💧 水分　<b id="waterTotal">0</b> / <span id="waterGoal">2,000</span> ml</span>
+          <button class="link-btn" id="waterListBtn">記録を見る</button>
+        </div>
+        <div class="bar"><div class="fill" id="waterFill" style="background:var(--water)"></div></div>
+        <div class="water-grid">
+          <button class="btn" data-water="200">＋200</button>
+          <button class="btn" data-water="350">＋350</button>
+          <button class="btn" data-water="500">＋500</button>
+          <button class="btn" id="waterCustom">✏️</button>
+        </div>
+      </div>
+
       <h2>いつものボタン</h2>
       <div id="foodButtons" class="grid"></div>
 
       <h2>晩酌</h2>
       <div id="drinkButtons" class="grid drink-grid"></div>
 
+      <button class="btn big primary" id="openPaste">📋 貼り付けて記録</button>
       <button class="btn big" id="openFoodSearch">🥬 食材をさがす（成分表）</button>
       <div class="grid two">
         <button class="btn" id="openProductPick">🛒 商品から記録</button>
@@ -85,6 +100,7 @@
         <div class="range-row"><span>C 炭水化物</span><input name="cmin" inputmode="decimal">〜<input name="cmax" inputmode="decimal">g</div>
         <div class="range-row"><span>夜の脂質</span><input name="nightFatMax" inputmode="decimal">g以内</div>
         <div class="range-row"><span>夜とする時刻</span><input name="nightStartHour" inputmode="numeric">時から</div>
+        <div class="range-row"><span>水分の目標</span><input name="waterGoal" inputmode="numeric">ml</div>
         <button class="btn primary">保存</button>
       </form>
 
@@ -110,6 +126,6 @@
   <dialog id="sheet"><form method="dialog" id="sheetForm"></form></dialog>
   <div id="toast" class="toast" hidden><span id="toastText"></span><button id="toastUndo">取り消し</button></div>
 
-  <script type="module" src="js/app.js?v=4"></script>
+  <script type="module" src="js/app.js?v=5"></script>
 </body>
 </html>

@@ -1,11 +1,13 @@
 // 画面の動き。データの保存は store.js にまかせる。
 import * as store from './store.js';
 import { loadFoods, searchFoods, recentFoods, rememberFood } from './foods.js';
+import { parseBlock, checkTotal } from './paste.js';
 
 const $ = (s) => document.querySelector(s);
 const state = {
   date: todayStr(),
-  logs: [],
+  logs: [],   // 食事・晩酌の記録
+  water: [],  // 水分の記録
   presets: [],
   products: [],
   settings: null,
@@ -82,7 +84,9 @@ $('#loginForm').addEventListener('submit', async (e) => {
 function watchDay() {
   if (state.unsubLogs) state.unsubLogs();
   state.unsubLogs = store.watchLogs(state.date, (logs) => {
-    state.logs = logs.sort((a, b) => (a.time || '').localeCompare(b.time || '') || (a.ts || 0) - (b.ts || 0));
+    logs.sort((a, b) => (a.time || '').localeCompare(b.time || '') || (a.ts || 0) - (b.ts || 0));
+    state.logs = logs.filter((l) => l.kind !== 'water');
+    state.water = logs.filter((l) => l.kind === 'water');
     renderHome();
   });
   renderDate();
@@ -150,6 +154,7 @@ function renderHome() {
     bar('C 炭水化物', all.c, s.c.min, s.c.max, 'var(--c)') +
     bar(`🌙 夜の脂質（${s.nightStartHour}時〜）`, nightF, 0, s.nightFatMax, 'var(--f)', true);
 
+  renderWater();
   renderPresets();
   renderLogs();
 }
@@ -271,7 +276,7 @@ $('#productList').addEventListener('click', (e) => {
   if (use) productRecord(state.products.find((p) => p.id === use.dataset.useProduct));
 });
 
-function productForm(p = { basis: 'unit', unitName: '個' }) {
+function productForm(p = { basis: 'unit', unitName: '個' }, after = null) {
   openSheet(`<h3>${p.id ? '商品を編集' : '商品を登録'}</h3>
     <p class="muted small">パッケージの「栄養成分表示」を見て入れてください</p>
     <label>商品名<input name="name" value="${esc(p.name || '')}" required placeholder="例：セブン サラダチキン"></label>
@@ -287,6 +292,7 @@ function productForm(p = { basis: 'unit', unitName: '個' }) {
     if (action === 'delete') return store.deleteProduct(p.id);
     if (action !== 'save') return;
     store.saveProduct({ ...(p.id ? { id: p.id } : {}), ...readNutrients(f, f.get('name').trim()), basis: f.get('basis'), unitName: '個' });
+    if (after) setTimeout(after, 300);
   });
 }
 
@@ -353,6 +359,123 @@ $('#openProductPick').addEventListener('click', () => {
   draw();
 });
 
+// ---------- 水分 ----------
+function renderWater() {
+  const total = state.water.reduce((a, w) => a + num(w.ml), 0);
+  const goal = state.settings.waterGoal || 2000;
+  $('#waterTotal').textContent = r0(total);
+  $('#waterGoal').textContent = r0(goal);
+  $('#waterFill').style.width = `${Math.min(100, (total / goal) * 100)}%`;
+}
+
+async function addWater(ml) {
+  if (!(ml > 0)) return;
+  const time = state.date === todayStr() ? nowTime() : '12:00';
+  const id = await store.addLog({ date: state.date, time, kind: 'water', name: `水分 ${ml}ml`, ml, kcal: 0, p: 0, f: 0, c: 0 });
+  showToast(`💧 ${ml}ml を記録`, () => store.deleteLog(id));
+}
+document.querySelectorAll('[data-water]').forEach((b) => b.addEventListener('click', () => addWater(Number(b.dataset.water))));
+$('#waterCustom').addEventListener('click', () => {
+  openSheet(`<h3>💧 水分を入力</h3>
+    <label>量（ml）<input name="ml" inputmode="numeric" placeholder="例：300"></label>
+    <button class="btn primary big" value="save">記録する</button>
+    <button class="btn" value="cancel" formnovalidate>やめる</button>`,
+  (f, action) => { if (action === 'save') addWater(Math.round(num(f.get('ml')))); });
+});
+$('#waterListBtn').addEventListener('click', () => {
+  const rows = state.water.map((w) => `<li><span class="time">${esc(w.time)}</span><div class="main"><div class="title">${r0(w.ml)} ml</div></div><button type="button" data-del-water="${w.id}">消す</button></li>`).join('');
+  openSheet(`<h3>💧 この日の水分</h3>
+    <ul class="list">${rows || '<li class="empty">まだ記録がありません</li>'}</ul>
+    <button class="btn" value="cancel" formnovalidate>閉じる</button>`, () => {});
+  $('#sheetForm').querySelectorAll('[data-del-water]').forEach((b) =>
+    b.addEventListener('click', () => { store.deleteLog(b.dataset.delWater); b.closest('li').remove(); }));
+});
+
+// ---------- 貼り付けて記録（からだ記録ブロック） ----------
+const normName = (s) => String(s).normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+const UNIT_COUNT = ['個', '袋', '本', '杯', '枚', '切れ', 'パック', '缶', '食'];
+const UNIT_WEIGHT = ['g', 'ml', 'cc'];
+
+// 数値がない行を、自分の商品 → 成分表 の順でさがして計算する
+function resolveItem(it) {
+  const label = it.amount !== null ? `${it.name} ${r1(it.amount)}${it.unit}` : it.name;
+  if (it.nut) return { ok: true, label, src: '書いてある数値', ...it.nut };
+  const key = normName(it.name);
+  const isCount = UNIT_COUNT.includes(it.unit);
+  const isWeight = UNIT_WEIGHT.includes(it.unit);
+  // 商品名との照合：貼った名前の言葉が、商品名の「言葉の頭」と合うときだけ一致とする
+  // （例：「オートミール」→ ON365 オートミール ○、「バナナ」→ ソイプロテイン ナチュラルバナナ ×）
+  const terms = String(it.name).normalize('NFKC').toLowerCase().split(/\s+/).filter(Boolean);
+  const prod = state.products.find((p) => {
+    const words = String(p.name).normalize('NFKC').toLowerCase().split(/[\s（）()［］\[\]・]+/).filter(Boolean);
+    const nameOk = key.includes(normName(p.name)) || terms.every((t) => words.some((w) => w.startsWith(t)));
+    return nameOk && ((p.basis === 'g' && isWeight) || (p.basis !== 'g' && isCount));
+  });
+  if (prod) {
+    const k = prod.basis === 'g' ? it.amount / 100 : it.amount;
+    return { ok: true, label, src: `商品：${prod.name}`, kcal: prod.kcal * k, p: prod.p * k, f: prod.f * k, c: prod.c * k };
+  }
+  if (isWeight) {
+    const fd = searchFoods(it.name, 1)[0];
+    if (fd) {
+      const k = it.amount / 100;
+      return { ok: true, label, src: `成分表：${fd.label}`, kcal: fd.kcal * k, p: fd.p * k, f: fd.f * k, c: fd.c * k };
+    }
+  }
+  return { ok: false, label, src: '見つかりません（登録してください）', kcal: 0, p: 0, f: 0, c: 0, it };
+}
+
+async function openPaste(text = '') {
+  openSheet(`<h3>📋 貼り付けて記録</h3>
+    <p class="muted small">Claudeの「#からだ記録」ブロックをそのまま貼り付けてください</p>
+    <textarea name="text" placeholder="#からだ記録&#10;食品名 30g | 116kcal P3.0 F3.3 C20.3&#10;合計: 116kcal P3.0 F3.3 C20.3">${esc(text)}</textarea>
+    <div id="pastePreview"></div>
+    <button class="btn primary big" value="save" id="pasteSave" disabled>記録する</button>
+    <button class="btn" value="cancel" formnovalidate>やめる</button>`,
+  (f, action) => {
+    if (action !== 'save' || !state.paste) return;
+    const { title, rows } = state.paste;
+    const ok = rows.filter((r) => r.ok);
+    const ng = rows.length - ok.length;
+    if (!ok.length) return;
+    if (ng && !confirm(`見つからない ${ng} 件は記録されません。よろしいですか？`)) return setTimeout(() => openPaste(f.get('text')), 0);
+    const items = ok.map((r) => ({ name: r.label, kcal: r.kcal, p: r.p, f: r.f, c: r.c }));
+    record({ kind: 'food', name: `${title || '貼り付け'}（${items.length}品）`, ...sum(items), items });
+  });
+  const ta = $('#sheetForm [name=text]');
+  try { await loadFoods(); } catch { /* 成分表なしでも、数値付きの行は使える */ }
+  const draw = () => {
+    const block = parseBlock(ta.value);
+    const rows = block.items.map(resolveItem);
+    state.paste = { title: block.title, rows };
+    const total = sum(rows);
+    const warns = checkTotal(total, block.total);
+    const ng = rows.filter((r) => !r.ok).length;
+    $('#pasteSave').disabled = !rows.some((r) => r.ok);
+    if (!rows.length) { $('#pastePreview').innerHTML = ta.value.trim() ? '<p class="warn">読み取れる行がありません。「食品名 量g | 〇kcal P〇 F〇 C〇」の形か確認してください</p>' : ''; return; }
+    $('#pastePreview').innerHTML = `
+      <ul class="list">${rows.map((r, i) => `<li class="paste-row ${r.ok ? '' : 'ng'}">
+        <div class="main"><div class="title">${esc(r.label)}</div>
+          <div class="meta">${r.ok ? pfcText(r) : ''}</div><div class="src">${esc(r.src)}</div></div>
+        ${r.ok ? '' : `<button type="button" data-reg="${i}">登録</button>`}
+      </li>`).join('')}</ul>
+      <p class="paste-total">合計　<b>${pfcText(total)}</b></p>
+      ${warns.length ? `<p class="warn">⚠️ 「合計:」の行と10%以上ズレています：${warns.map((w) => `${w.key} 計算${r1(w.calc)} / 合計行${r1(w.total)}`).join('、')}</p>` : ''}
+      ${block.total && !warns.length ? '<p class="muted small" style="text-align:center">✓ 「合計:」の行と一致しています</p>' : ''}
+      ${ng ? `<p class="warn">見つからない食品が ${ng} 件あります。「登録」から商品として登録できます</p>` : ''}`;
+    $('#pastePreview').querySelectorAll('[data-reg]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const it = rows[Number(b.dataset.reg)].it;
+        const saved = ta.value;
+        $('#sheet').close();
+        productForm({ name: it.name, basis: UNIT_WEIGHT.includes(it.unit) ? 'g' : 'unit', unitName: '個' }, () => openPaste(saved));
+      }));
+  };
+  ta.addEventListener('input', draw);
+  draw();
+}
+$('#openPaste').addEventListener('click', () => openPaste());
+
 // ---------- 食材をさがす（食品成分表） ----------
 $('#openFoodSearch').addEventListener('click', async () => {
   openSheet(`<h3>食材をさがす</h3>
@@ -398,6 +521,7 @@ function fillSettingsForm() {
   set('fmin', s.f.min); set('fmax', s.f.max);
   set('cmin', s.c.min); set('cmax', s.c.max);
   set('nightFatMax', s.nightFatMax); set('nightStartHour', s.nightStartHour);
+  set('waterGoal', s.waterGoal);
 }
 $('#settingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -409,6 +533,7 @@ $('#settingsForm').addEventListener('submit', async (e) => {
     c: { min: g('cmin'), max: g('cmax') },
     nightFatMax: g('nightFatMax'),
     nightStartHour: g('nightStartHour'),
+    waterGoal: g('waterGoal') || 2000,
   };
   await store.saveSettings(state.settings);
   renderHome();

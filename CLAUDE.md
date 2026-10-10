@@ -30,12 +30,13 @@
 - `index.html` 画面の骨組み / `css/style.css` 見た目（ダークモード対応）
 - `js/app.js` 画面の動き / `js/store.js` 保存係 / `js/defaults.js` 初期の目標値とボタン
 - `js/firebase-config.js` Firebaseの設定値 / `firestore.rules` データの鍵（本人だけ読み書き可）
-- `js/foods.js` 成分表の検索 / `data/foods.json` 成分表データ / `tools/convert_mext.py` Excel→JSON変換
+- `js/paste.js` からだ記録ブロックの読み取り（文字→データだけ） / `js/foods.js` 成分表の検索 / `data/foods.json` 成分表データ / `tools/convert_mext.py` Excel→JSON変換
 - `sw.js` オフライン用（同じサイトのファイルは毎回 no-cache で新しいか確認。大きく変えたら CACHE 名と index.html の `?v=` を上げる） / `manifest.webmanifest` ホーム画面アイコン用
 - `SETUP.md` Firebase と GitHub Pages の準備手順（本人向け）
 
 ## データの形（Firestore）
-- `users/{uid}/logs/{id}` 記録1件：`{date:'YYYY-MM-DD', time:'HH:MM', ts, kind:'food'|'drink', name, kcal, p, f, c, items[], presetId?}`
+- `users/{uid}/logs/{id}` 記録1件：`{date:'YYYY-MM-DD', time:'HH:MM', ts, kind:'food'|'drink'|'water', name, kcal, p, f, c, items[], presetId?, ml?}`
+  - 水分は `kind:'water'` と `ml`。画面では食事の記録とは分けて扱う（state.water）
 - `users/{uid}/products/{id}` 商品：`{name, basis:'unit'|'g', unitName, kcal, p, f, c}`（unit=1個あたり、g=100gあたり）
 - `users/{uid}/presets/{id}` いつものボタン・晩酌ボタン：`{kind:'food'|'drink', name, order, items:[{name,kcal,p,f,c}]}`
 - `users/{uid}/meta/settings` 目標値 / `users/{uid}/meta/seed` 初期ボタンを入れたか
@@ -86,6 +87,17 @@
   - 検索は `js/foods.js`：カタカナ/ひらがな・全角/半角を区別しない。スペース区切りで絞り込み。鶏→にわとり などの言い換え表あり
   - 選んだあとは商品と同じ「重さ(g)入力」画面を使う。最近使った食材は端末ごとに localStorage に記憶
   - 注意：この開発環境からは mext.go.jp に接続できない（データ更新時は本人にExcelを送ってもらう）
+- [x] 追加：📋 貼り付けて記録（2026-10-11）
+  - 食事提案のClaudeが出す「からだ記録ブロック」を貼ると、確認画面 →「記録する」で1件の記録（名前＝見出し＋品数）になる
+  - 形式（固定）：1行目 `#からだ記録`、1食材1行 `食品名 量単位 | 〇kcal P〇 F〇 C〇`、最後 `合計: 〇kcal P〇 F〇 C〇`
+  - 数値が書いてある行はそのまま使う。数値がない行だけ：自分の商品 → 成分表（g/mlのとき）の順に照合
+  - 商品との照合は「貼った名前の言葉が、商品名の言葉の頭と合う」ときだけ（「バナナ」→ナチュラルバナナのプロテイン、のような誤一致を防ぐ）
+  - 単位：g が基本。個・袋などは「1個あたり」で登録した商品だけ計算できる
+  - 見つからない行は赤く表示し「登録」→ 商品登録画面 → 保存後に貼り付け画面へ戻る
+  - 「合計:」行と計算結果が10%以上（かつ kcal 10以上／PFC 1g以上）ズレたら警告
+- [x] 追加：💧 水分の記録（2026-10-11）
+  - ホームの水分カード：＋200／＋350／＋500／✏️自由入力。目標は設定で変更（初期 2,000ml）
+  - 料理に使う水（雑炊の水200mlなど）や晩酌は水分に数えない
 - [ ] ステップ3：トレのチェック（腕立て／懸垂／カエル腹筋＋ブルガリアンスクワット、マウンテンクライマー）と体組成（週1：体重・体脂肪率・骨格筋量）＋推移グラフ
 - [ ] ステップ4：消費カロリー
   - HUAWEI WATCH GT4 は外部連携が難しいので、まず数字を手入力

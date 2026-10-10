@@ -13,6 +13,9 @@
   --drink-soft: #f8e3ea;
   --over: #d23c3c;
   --zone: rgba(31, 122, 90, 0.16);
+  --water: #2a9fd6;
+  --warn-bg: #fff4d6;
+  --warn: #7a5a00;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -30,6 +33,9 @@
     --drink-soft: #3a2029;
     --over: #f06a6a;
     --zone: rgba(76, 192, 149, 0.2);
+    --water: #5cc0f0;
+    --warn-bg: #3a3218;
+    --warn: #f0d98a;
   }
 }
 
@@ -226,3 +232,23 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
   background: #fff1c2; color: #7a5a00;
 }
 @media (prefers-color-scheme: dark) { .tmp { background: #4a3d12; color: #f3d77a; } }
+
+/* 水分 */
+.water-head { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+.water-head b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.water .bar { margin: 8px 0 12px; }
+.water-grid { display: grid; grid-template-columns: repeat(3, 1fr) 64px; gap: 8px; }
+.water-grid .btn { margin: 0; color: var(--water); }
+.link-btn { border: none; background: none; color: var(--accent); font-size: 14px; padding: 8px 0 8px 8px; }
+
+/* 貼り付けて記録 */
+textarea {
+  display: block; width: 100%; min-height: 140px; margin: 4px 0 12px;
+  padding: 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--bg); color: var(--text); font: inherit; font-size: 15px;
+}
+.paste-row .src { font-size: 12px; color: var(--muted); }
+.paste-row.ng .title { color: var(--over); }
+.warn { background: var(--warn-bg); color: var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0; font-size: 14px; }
+.paste-total { text-align: center; margin: 8px 0 12px; }
+.paste-total b { font-size: 20px; }

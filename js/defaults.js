@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS = {
   c: { min: 180, max: 200 },
   nightFatMax: 15,   // 夜の脂質の上限(g)
   nightStartHour: 17, // この時刻以降を「夜」として数える
+  waterGoal: 2000,    // 1日の水分の目標(ml)
 };
 
 // 1食材 = { name, kcal, p, f, c }（その量での値）
