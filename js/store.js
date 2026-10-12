@@ -6,6 +6,7 @@
 //   users/{uid}/logs/{id}      … 食べた・飲んだ記録（1回の記録 = 1件）
 //   users/{uid}/products/{id}  … 自分で登録した商品
 //   users/{uid}/presets/{id}   … いつものボタン・晩酌ボタン
+//   users/{uid}/body/{日付}    … 体組成（InBodyの結果。1日1件、日付がID）
 //   users/{uid}/meta/settings  … 目標値など
 import { firebaseConfig } from './firebase-config.js';
 import { DEFAULT_SETTINGS, DEFAULT_PRESETS, DEFAULT_PRODUCTS } from './defaults.js';
@@ -35,6 +36,10 @@ export const saveProduct = (p) => (p.id ? backend.update('products', p.id, strip
 export const deleteProduct = (id) => backend.remove('products', id);
 export const savePreset = (p) => (p.id ? backend.update('presets', p.id, strip(p)) : backend.add('presets', p));
 export const deletePreset = (id) => backend.remove('presets', id);
+// 体組成：日付(YYYY-MM-DD)をIDにして、同じ日は上書き
+export const watchBody = (cb) => backend.watch('body', cb);
+export const saveBody = (date, data) => backend.set('body', date, { ...data, date, ts: Date.now() });
+export const deleteBody = (date) => backend.remove('body', date);
 export async function getSettings() {
   let saved = null;
   try { saved = await backend.getMeta('settings'); } catch { /* 電波なし → 初期値で表示 */ }
@@ -93,6 +98,7 @@ function localBackend() {
       return id;
     },
     async update(name, id, data) { col(name)[id] = { ...col(name)[id], ...data }; save(); },
+    async set(name, id, data) { col(name)[id] = data; save(); },
     async remove(name, id) { delete col(name)[id]; save(); },
     async getMeta(key) { return col('meta')[key]; },
     async setMeta(key, val) { col('meta')[key] = val; save(); },
@@ -136,6 +142,7 @@ async function firebaseBackend() {
       return ref.id;
     },
     async update(name, id, data) { fs.updateDoc(fs.doc(colRef(name), id), data); },
+    async set(name, id, data) { fs.setDoc(fs.doc(colRef(name), id), data); },
     async remove(name, id) { fs.deleteDoc(fs.doc(colRef(name), id)); },
     async getMeta(key) {
       const s = await fs.getDoc(metaRef(key));
@@ -144,7 +151,7 @@ async function firebaseBackend() {
     async setMeta(key, val) { await fs.setDoc(metaRef(key), val); },
     async exportAll() {
       const out = {};
-      for (const name of ['logs', 'products', 'presets']) {
+      for (const name of ['logs', 'products', 'presets', 'body']) {
         const snap = await fs.getDocs(colRef(name));
         out[name] = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]));
       }

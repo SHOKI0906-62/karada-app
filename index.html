@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="stylesheet" href="css/style.css?v=7">
+  <link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
   <!-- ログイン画面 -->
@@ -83,6 +83,22 @@
       <ul id="logList" class="list"></ul>
     </section>
 
+    <!-- 体組成 -->
+    <section id="tab-body" class="page" hidden>
+      <h1>体組成</h1>
+      <div class="grid two">
+        <button class="btn primary" id="bodyPaste">📋 貼り付け</button>
+        <button class="btn" id="bodyNew">✏️ 手で入力</button>
+      </div>
+      <div class="card" id="bodyLatest"></div>
+      <div class="card">
+        <div class="chips" id="bodyChips"></div>
+        <div id="bodyChart"></div>
+      </div>
+      <h2>これまでの記録</h2>
+      <ul id="bodyList" class="list"></ul>
+    </section>
+
     <!-- 商品 -->
     <section id="tab-products" class="page" hidden>
       <h1>商品</h1>
@@ -118,6 +134,7 @@
 
     <nav class="tabbar">
       <button data-tab="home" class="active">🏠<span>ホーム</span></button>
+      <button data-tab="body">📈<span>体組成</span></button>
       <button data-tab="products">🛒<span>商品</span></button>
       <button data-tab="settings">⚙️<span>設定</span></button>
     </nav>
@@ -127,6 +144,6 @@
   <dialog id="sheet"><form method="dialog" id="sheetForm"></form></dialog>
   <div id="toast" class="toast" hidden><span id="toastText"></span><button id="toastUndo">取り消し</button></div>
 
-  <script type="module" src="js/app.js?v=7"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>

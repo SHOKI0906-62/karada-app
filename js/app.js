@@ -3,12 +3,15 @@ import * as store from './store.js';
 import { DEFAULT_PRESETS } from './defaults.js';
 import { loadFoods, searchFoods, recentFoods, rememberFood } from './foods.js';
 import { parseBlock, checkTotal } from './paste.js';
+import { METRICS, parseBody, diffOf, fmt, chartSVG, bindChart, shrinkImage } from './body.js';
 
 const $ = (s) => document.querySelector(s);
 const state = {
   date: todayStr(),
   logs: [],   // 食事・晩酌の記録
   water: [],  // 水分の記録
+  body: [],   // 体組成（新しい順）
+  bodyMetric: 'weight', // グラフに出す項目
   presets: [],
   products: [],
   settings: null,
@@ -53,6 +56,7 @@ store.initStore(async (user) => {
   fillSettingsForm();
   store.watchPresets((list) => { state.presets = list.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)); addWaterToOldPresets(); renderPresets(); renderPresetList(); });
   store.watchProducts((list) => { state.products = list.sort((a, b) => a.name.localeCompare(b.name, 'ja')); renderProducts(); });
+  store.watchBody((list) => { state.body = list.sort((a, b) => b.date.localeCompare(a.date)); renderBody(); });
   watchDay();
 }).catch(() => {
   // Firebaseの部品が読み込めなかったとき（初回に電波がない など）
@@ -98,7 +102,7 @@ function watchDay() {
 document.querySelectorAll('.tabbar button').forEach((b) =>
   b.addEventListener('click', () => {
     document.querySelectorAll('.tabbar button').forEach((x) => x.classList.toggle('active', x === b));
-    ['home', 'products', 'settings'].forEach((t) => ($(`#tab-${t}`).hidden = t !== b.dataset.tab));
+    ['home', 'body', 'products', 'settings'].forEach((t) => ($(`#tab-${t}`).hidden = t !== b.dataset.tab));
     window.scrollTo(0, 0);
   })
 );
@@ -466,6 +470,7 @@ async function openPaste(text = '') {
   const ta = $('#sheetForm [name=text]');
   try { await loadFoods(); } catch { /* 成分表なしでも、数値付きの行は使える */ }
   const draw = () => {
+    if (parseBody(ta.value)) { $('#sheet').close(); openBodyForm({}, ta.value); return; }
     const block = parseBlock(ta.value);
     const rows = block.items.map(resolveItem);
     state.paste = { title: block.title, rows };
@@ -496,6 +501,101 @@ async function openPaste(text = '') {
   draw();
 }
 $('#openPaste').addEventListener('click', () => openPaste());
+
+// ---------- 体組成（InBody） ----------
+function renderBody() {
+  const [latest, prev] = state.body;
+  $('#bodyLatest').innerHTML = latest
+    ? `<div class="body-head"><b>${latest.date.replaceAll('-', '/')}</b>${latest.cid ? `<span class="cid">CID ${esc(latest.cid)}</span>` : ''}</div>
+       <div class="metric-grid">${METRICS.filter((mt) => latest[mt.key] != null).map((mt) => {
+         const d = diffOf(mt, latest[mt.key], prev?.[mt.key]);
+         return `<div class="metric"><div class="name">${mt.label}</div>
+           <div class="val">${fmt(mt, latest[mt.key])}<small>${mt.unit}</small></div>
+           <div class="diff ${d?.cls || ''}">${d ? `前回比 ${d.text}` : '&nbsp;'}</div></div>`;
+       }).join('')}</div>`
+    : '<p class="muted">まだ記録がありません。InBodyの結果を「📋 貼り付けて記録」か「✏️ 手で入力」で入れてください</p>';
+  const shown = METRICS.filter((mt) => state.body.some((r) => r[mt.key] != null));
+  if (!shown.some((mt) => mt.key === state.bodyMetric) && shown.length) state.bodyMetric = shown[0].key;
+  $('#bodyChips').innerHTML = (shown.length ? shown : METRICS.slice(0, 1)).map((mt) =>
+    `<button type="button" data-metric="${mt.key}" class="${mt.key === state.bodyMetric ? 'on' : ''}">${mt.label}</button>`).join('');
+  const mt = METRICS.find((m) => m.key === state.bodyMetric);
+  $('#bodyChart').innerHTML = chartSVG(mt, state.body);
+  bindChart($('#bodyChart'), mt, state.body);
+  $('#bodyList').innerHTML = state.body.map((r) => `<li>
+      <div class="main"><div class="title">${r.date.replaceAll('-', '/')}${r.images?.length ? ' 📷' : ''}</div>
+        <div class="meta">${['weight', 'fatPct', 'smm'].map((k) => { const m = METRICS.find((x) => x.key === k); return r[k] != null ? `${m.label} ${fmt(m, r[k])}${m.unit}` : ''; }).filter(Boolean).join('　')}</div></div>
+      <button data-body="${r.date}">開く</button></li>`).join('') || '<li class="empty">まだ記録がありません</li>';
+}
+$('#bodyChips').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-metric]');
+  if (b) { state.bodyMetric = b.dataset.metric; renderBody(); }
+});
+$('#bodyList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-body]');
+  if (b) openBodyForm(state.body.find((r) => r.date === b.dataset.body));
+});
+$('#bodyNew').addEventListener('click', () => openBodyForm());
+$('#bodyPaste').addEventListener('click', () => openBodyForm({}, '', true));
+
+// 体組成の入力画面。text があれば読み取って欄を埋める。focusPaste なら貼り付け欄から始める
+function openBodyForm(rec = {}, text = '', focusPaste = false) {
+  const editing = !!rec.date;
+  let images = [...(rec.images || [])];
+  openSheet(`<h3>${editing ? '体組成の記録' : '体組成を記録'}</h3>
+    <label>Claudeの「#体組成」ブロックを貼り付け（なくてもOK）
+      <textarea name="paste" placeholder="#体組成 2026-10-12&#10;体重 61.2kg&#10;体脂肪率 8.4%&#10;…">${esc(text)}</textarea></label>
+    <label>測定日<input type="date" name="date" value="${esc(rec.date || todayStr())}" required></label>
+    <div class="body-fields">${METRICS.map((mt) => `<label>${mt.label}${mt.unit ? `（${mt.unit}）` : ''}
+      <input name="${mt.key}" inputmode="decimal" value="${rec[mt.key] ?? ''}"></label>`).join('')}</div>
+    <label>CID型<input name="cid" value="${esc(rec.cid || '')}" placeholder="例：D型"></label>
+    <p class="muted small">スクショ（InBodyの画面）</p>
+    <div class="thumbs" id="thumbs"></div>
+    <label class="btn" style="text-align:center">📷 スクショを追加<input type="file" accept="image/*" multiple id="bodyFiles" hidden></label>
+    <button class="btn primary big" value="save">保存</button>
+    ${editing ? '<button class="btn danger" value="delete" formnovalidate>この日の記録を消す</button>' : ''}
+    <button class="btn" value="cancel" formnovalidate>閉じる</button>`,
+  (f, action) => {
+    if (action === 'delete') { if (confirm(`${rec.date} の体組成を消しますか？`)) store.deleteBody(rec.date); return; }
+    if (action !== 'save') return;
+    const date = f.get('date');
+    // Firestore の1件の上限は1MB。画像が大きすぎると保存できないので先に確かめる
+    if (images.join('').length > 900000) { alert('スクショが大きすぎます。枚数を減らしてください'); return setTimeout(() => openBodyForm(rec, form.elements.paste.value), 0); }
+    const data = { cid: String(f.get('cid') || '').trim(), images };
+    for (const mt of METRICS) { const v = String(f.get(mt.key) || '').trim(); data[mt.key] = v === '' ? null : num(v); }
+    if (editing && rec.date !== date) store.deleteBody(rec.date);
+    store.saveBody(date, data);
+    showToast(`${date.replaceAll('-', '/')} の体組成を保存`);
+  });
+  const form = $('#sheetForm');
+  const fill = () => {
+    const b = parseBody(form.elements.paste.value);
+    if (!b) return;
+    if (b.date) form.elements.date.value = b.date;
+    for (const mt of METRICS) if (b[mt.key] != null) form.elements[mt.key].value = b[mt.key];
+    if (b.cid) form.elements.cid.value = b.cid;
+  };
+  const drawThumbs = () => {
+    $('#thumbs').innerHTML = images.map((src, i) => `<figure><img src="${src}" alt="スクショ${i + 1}" data-view="${i}"><button type="button" data-rm="${i}" aria-label="消す">×</button></figure>`).join('');
+  };
+  form.elements.paste.addEventListener('input', fill);
+  $('#thumbs').addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) { images.splice(Number(rm.dataset.rm), 1); drawThumbs(); return; }
+    const v = e.target.closest('[data-view]');
+    if (v) showPhoto(images[Number(v.dataset.view)]);
+  });
+  $('#bodyFiles').addEventListener('change', async (e) => {
+    for (const file of e.target.files) {
+      if (images.length >= 4) { alert('スクショは4枚までです'); break; }
+      try { images.push(await shrinkImage(file)); } catch { alert('画像を読み込めませんでした'); }
+    }
+    e.target.value = '';
+    drawThumbs();
+  });
+  fill();
+  drawThumbs();
+  if (focusPaste) form.elements.paste.focus();
+}
 
 // ---------- 食材をさがす（食品成分表） ----------
 $('#openFoodSearch').addEventListener('click', async () => {
@@ -593,6 +693,15 @@ $('#exportBtn').addEventListener('click', async () => {
   a.download = `karada-backup-${todayStr()}.json`;
   a.click();
 });
+
+// 写真を画面いっぱいに表示（タップで閉じる）
+function showPhoto(src) {
+  const div = document.createElement('div');
+  div.className = 'photo-overlay';
+  div.innerHTML = `<img src="${src}" alt="スクショ">`;
+  div.addEventListener('click', () => div.remove());
+  ($('#sheet').open ? $('#sheet') : document.body).appendChild(div);
+}
 
 // ---------- 共通：シートとトースト ----------
 let sheetHandler = null;
