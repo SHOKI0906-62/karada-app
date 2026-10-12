@@ -38,7 +38,8 @@
 - `SETUP.md` Firebase と GitHub Pages の準備手順（本人向け）
 
 ## データの形（Firestore）
-- `users/{uid}/logs/{id}` 記録1件：`{date:'YYYY-MM-DD', time:'HH:MM', ts, kind:'food'|'drink'|'water', name, kcal, p, f, c, items[], presetId?, ml?}`
+- `users/{uid}/logs/{id}` 記録1件：`{date:'YYYY-MM-DD', time:'HH:MM', ts, kind:'food'|'drink'|'water'|'burn', name, kcal, p, f, c, items[], presetId?, ml?}`
+  - 消費（時計のムーブ）は `kind:'burn'`、1日1件（入れ直すと上書き）。食事の合計には入れない（state.burn）
   - 水分は `kind:'water'` と `ml`。画面では食事の記録とは分けて扱う（state.water）
 - `users/{uid}/products/{id}` 商品：`{name, basis:'unit'|'g', unitName, kcal, p, f, c}`（unit=1個あたり、g=100gあたり）
 - `users/{uid}/presets/{id}` いつものボタン・晩酌ボタン：`{kind:'food'|'drink', name, order, items:[{name,kcal,p,f,c,w}]}`
@@ -46,7 +47,7 @@
 - `users/{uid}/body/{YYYY-MM-DD}` 体組成（1日1件・日付がID）：`{date, ts, weight, muscle, smm, fatMass, fatPct, whr, visceral, bmr, cid, images:[JPEG dataURL]}`
   - 画像はFirebase Storageを使わず、縮小（幅720px・JPEG70%、1枚約60〜100KB）してドキュメントに入れる。最大4枚・合計900KBまで（Firestore 1件1MBの上限のため）
 - `users/{uid}/meta/settings` 目標値 / `users/{uid}/meta/seed` 初期ボタンを入れたか
-- 今後：消費カロリーは `logs` に `kind:'burn'`（または別コレクション）で足す。トレは `training/{date}` の予定
+- 今後：トレは `training/{date}` の予定
 
 ## 目標と表示ルール
 - 目的：**維持**（体脂肪率7〜9%台をキープ）
@@ -119,10 +120,16 @@
   - #体組成ブロックの形：1行目 `#体組成 YYYY-MM-DD`、各行 `項目名 数値単位`、`CID 〇〇型`
   - 基礎代謝量は ステップ4（消費カロリー）で使う予定
 - [ ] ステップ3b：トレのチェック（腕立て／懸垂／カエル腹筋＋ブルガリアンスクワット、マウンテンクライマー）
-- [ ] ステップ4：消費カロリー
-  - HUAWEI WATCH GT4 は外部連携が難しいので、まず数字を手入力
-  - 施術ボタン（60/90/120分）：METs × 体重(kg) × 時間(h) × 1.05 で計算（METsは設定で調整）
-  - 「摂取 − 消費」の収支表示、総カロリー目標の見直し
+- [x] ステップ4a：消費カロリーと収支（2026-10-12）
+  - **消費 ＝ 基礎代謝（その日以前で最新のInBody bmr）＋ HUAWEI WATCH GT4 のムーブ（活動カロリー）**
+  - ムーブ＝Huawei Health「ヘルスケア」画面のリングの「ムーブ 〇 / 270 kcal」の左の数字
+  - 本人はお風呂以外ずっと時計を着けている（施術中も）→ 施術の分はムーブに入っているので、施術ボタンは作らない（二重に数えない）
+  - 入力：ホームの「⌚ ムーブ」ボタンで数字1つ。夜にその日の分、または翌朝に ‹ で前日に戻って入れる。`#消費` ＋ `ムーブ 〇kcal` の貼り付けにも対応
+  - ホームのカロリーカード下に「消費」「収支（摂取＝食事＋晩酌 − 消費）」を表示。マイナス＝オレンジ、プラス＝緑
+- [ ] ステップ4b：総カロリー目標の見直し（数日分のムーブがたまってから）
+  - 2026-10-12 の気づき：PFCから計算した目標 1,390〜1,600kcal は基礎代謝 1,582kcal とほぼ同じ → 維持には足りない可能性。10/5→10/12 で体重−1.1kg、筋肉量−0.3kg
+  - 本人の希望：体重を増やしたいわけではない。体組成を良くしたい（筋肉↑・脂肪は今のまま＝維持＋体組成改善）
+  - 時計を外していた日用の施術ボタン（METs × 体重 × 時間 × 1.05）は必要になったら作る
 
 ## 確認方法
 - `python3 -m http.server` で開くと、お試しモードで動作確認できる

@@ -10,6 +10,7 @@ const state = {
   date: todayStr(),
   logs: [],   // 食事・晩酌の記録
   water: [],  // 水分の記録
+  burn: [],   // 消費（時計のムーブ）。1日1件
   body: [],   // 体組成（新しい順）
   bodyMetric: 'weight', // グラフに出す項目
   presets: [],
@@ -56,7 +57,7 @@ store.initStore(async (user) => {
   fillSettingsForm();
   store.watchPresets((list) => { state.presets = list.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)); addWaterToOldPresets(); renderPresets(); renderPresetList(); });
   store.watchProducts((list) => { state.products = list.sort((a, b) => a.name.localeCompare(b.name, 'ja')); renderProducts(); });
-  store.watchBody((list) => { state.body = list.sort((a, b) => b.date.localeCompare(a.date)); renderBody(); });
+  store.watchBody((list) => { state.body = list.sort((a, b) => b.date.localeCompare(a.date)); renderBody(); renderHome(); });
   watchDay();
 }).catch(() => {
   // Firebaseの部品が読み込めなかったとき（初回に電波がない など）
@@ -91,8 +92,9 @@ function watchDay() {
   if (state.unsubLogs) state.unsubLogs();
   state.unsubLogs = store.watchLogs(state.date, (logs) => {
     logs.sort((a, b) => (a.time || '').localeCompare(b.time || '') || (a.ts || 0) - (b.ts || 0));
-    state.logs = logs.filter((l) => l.kind !== 'water');
+    state.logs = logs.filter((l) => l.kind !== 'water' && l.kind !== 'burn');
     state.water = logs.filter((l) => l.kind === 'water');
+    state.burn = logs.filter((l) => l.kind === 'burn');
     renderHome();
   });
   renderDate();
@@ -160,6 +162,7 @@ function renderHome() {
     bar('C 炭水化物', all.c, s.c.min, s.c.max, 'var(--c)') +
     bar(`🌙 夜の脂質（${s.nightStartHour}時〜）`, nightF, 0, s.nightFatMax, 'var(--f)', true);
 
+  renderBalance(food.kcal + drink.kcal);
   renderWater();
   renderPresets();
   renderLogs();
@@ -365,6 +368,63 @@ $('#openProductPick').addEventListener('click', () => {
   draw();
 });
 
+// ---------- 消費カロリーと収支 ----------
+// 消費 ＝ 基礎代謝（その日以前で一番新しいInBodyの値）＋ 時計のムーブ（活動カロリー）
+// 施術中も時計を着けているので、施術の分はムーブに入っている（二重に足さない）
+function bmrFor(date) {
+  const rec = state.body.find((r) => r.bmr != null && r.date <= date) || state.body.find((r) => r.bmr != null);
+  return rec ? { kcal: rec.bmr, date: rec.date } : null;
+}
+
+function renderBalance(eaten) {
+  const bmr = bmrFor(state.date);
+  const move = state.burn.reduce((a, b) => a + num(b.kcal), 0);
+  const el = $('#balance');
+  if (!bmr) {
+    el.innerHTML = '<p class="muted small">体組成タブでInBodyの基礎代謝量を記録すると、消費カロリーと収支が出ます</p>';
+    return;
+  }
+  const out = bmr.kcal + move;
+  const diff = eaten - out;
+  el.innerHTML = `
+    <div class="balance-row">
+      <span class="lbl">消費 <b>${r0(out)}</b> kcal</span>
+      <button type="button" class="move-btn" id="moveBtn">⌚ ムーブ ${state.burn.length ? `${r0(move)}` : '入力'}</button>
+    </div>
+    <p class="detail">基礎代謝 ${r0(bmr.kcal)}（InBody ${bmr.date.slice(5).replace('-', '/')}）＋ ムーブ ${state.burn.length ? r0(move) : '未入力'}</p>
+    <div class="balance-row">
+      <span class="lbl">収支（摂取 − 消費）</span>
+      <span class="balance-num ${diff < 0 ? 'minus' : 'plus'}">${diff > 0 ? '+' : diff < 0 ? '−' : '±'}${r0(Math.abs(diff))}<small> kcal</small></span>
+    </div>
+    ${state.burn.length ? '' : '<p class="detail">ムーブは夜か翌朝に入れると正確です（‹ で前の日に戻れます）</p>'}`;
+  $('#moveBtn').addEventListener('click', openMove);
+}
+
+function openMove() {
+  const cur = state.burn[0];
+  openSheet(`<h3>⌚ ムーブ（活動カロリー）</h3>
+    <p class="muted small">Huawei Health の「ムーブ」の数字（例：71 / 270 kcal の 71）を入れてください</p>
+    <label>ムーブ（kcal）<input name="kcal" inputmode="numeric" value="${cur ? r0(cur.kcal) : ''}" placeholder="例：320" required></label>
+    <button class="btn primary big" value="save">保存</button>
+    ${cur ? '<button class="btn danger" value="delete" formnovalidate>消す</button>' : ''}
+    <button class="btn" value="cancel" formnovalidate>やめる</button>`,
+  (f, action) => {
+    if (action === 'delete') { state.burn.forEach((b) => store.deleteLog(b.id)); return; }
+    if (action !== 'save') return;
+    saveMove(Math.round(num(f.get('kcal'))));
+  });
+  $('#sheetForm [name=kcal]').focus();
+}
+
+// 1日1件：あれば上書き、なければ追加
+function saveMove(kcal) {
+  const [cur, ...extra] = state.burn;
+  extra.forEach((b) => store.deleteLog(b.id));
+  if (cur) store.updateLog(cur.id, { kcal, time: state.date === todayStr() ? nowTime() : cur.time });
+  else store.addLog({ date: state.date, time: state.date === todayStr() ? nowTime() : '23:59', kind: 'burn', name: '⌚ ムーブ', kcal, p: 0, f: 0, c: 0 });
+  showToast(`ムーブ ${kcal}kcal を保存`);
+}
+
 // ---------- 水分 ----------
 function renderWater() {
   const drank = state.water.reduce((a, w) => a + num(w.ml), 0);
@@ -471,6 +531,8 @@ async function openPaste(text = '') {
   try { await loadFoods(); } catch { /* 成分表なしでも、数値付きの行は使える */ }
   const draw = () => {
     if (parseBody(ta.value)) { $('#sheet').close(); openBodyForm({}, ta.value); return; }
+    const mv = String(ta.value).normalize('NFKC').match(/^\s*#\s*消費[\s\S]*?(?:ムーブ|活動カロリー|活動)\s*[:：]?\s*(\d+)/);
+    if (mv) { $('#sheet').close(); saveMove(Number(mv[1])); return; }
     const block = parseBlock(ta.value);
     const rows = block.items.map(resolveItem);
     state.paste = { title: block.title, rows };
