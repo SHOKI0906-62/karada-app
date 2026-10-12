@@ -11,6 +11,7 @@ const state = {
   logs: [],   // 食事・晩酌の記録
   water: [],  // 水分の記録
   burn: [],   // 消費（時計のムーブ）。1日1件
+  work: [],   // 施術（分）。1件ずつ
   body: [],   // 体組成（新しい順）
   bodyMetric: 'weight', // グラフに出す項目
   presets: [],
@@ -59,6 +60,7 @@ store.initStore(async (user) => {
   store.watchProducts((list) => { state.products = list.sort((a, b) => a.name.localeCompare(b.name, 'ja')); renderProducts(); });
   store.watchBody((list) => { state.body = list.sort((a, b) => b.date.localeCompare(a.date)); renderBody(); renderHome(); });
   watchDay();
+  checkYesterday();
 }).catch(() => {
   // Firebaseの部品が読み込めなかったとき（初回に電波がない など）
   $('#login').hidden = false;
@@ -92,7 +94,8 @@ function watchDay() {
   if (state.unsubLogs) state.unsubLogs();
   state.unsubLogs = store.watchLogs(state.date, (logs) => {
     logs.sort((a, b) => (a.time || '').localeCompare(b.time || '') || (a.ts || 0) - (b.ts || 0));
-    state.logs = logs.filter((l) => l.kind !== 'water' && l.kind !== 'burn');
+    state.logs = logs.filter((l) => !['water', 'burn', 'work'].includes(l.kind));
+    state.work = logs.filter((l) => l.kind === 'work');
     state.water = logs.filter((l) => l.kind === 'water');
     state.burn = logs.filter((l) => l.kind === 'burn');
     renderHome();
@@ -369,35 +372,92 @@ $('#openProductPick').addEventListener('click', () => {
 });
 
 // ---------- 消費カロリーと収支 ----------
-// 消費 ＝ 基礎代謝（その日以前で一番新しいInBodyの値）＋ 時計のムーブ（活動カロリー）
-// 施術中も時計を着けているので、施術の分はムーブに入っている（二重に足さない）
-function bmrFor(date) {
-  const rec = state.body.find((r) => r.bmr != null && r.date <= date) || state.body.find((r) => r.bmr != null);
-  return rec ? { kcal: rec.bmr, date: rec.date } : null;
+// 消費 ＝ 基礎代謝（その日以前で一番新しいInBodyの値）＋ 時計のムーブ ＋ 施術の補正
+// 施術：腕時計はマッサージの消費を少なく見積もりやすい（心拍が上がりにくく、手首の動きが細かい）。
+//   施術の上乗せ ＝（METs − 1）× 体重 × 時間 × 1.05（−1 は基礎代謝で数え済みの分）
+//   時計もその一部は拾っているので、幅で出す：少なめ＝上乗せ0、多め＝上乗せ全部、目安＝上乗せ × workShare
+function latestFor(date, key) {
+  const rec = state.body.find((r) => r[key] != null && r.date <= date) || state.body.find((r) => r[key] != null);
+  return rec ? { v: rec[key], date: rec.date } : null;
+}
+const bmrFor = (date) => { const r = latestFor(date, 'bmr'); return r && { kcal: r.v, date: r.date }; };
+function workKcal(min) {
+  const s = state.settings;
+  const kg = latestFor(state.date, 'weight')?.v || 61;
+  return Math.max(0, (s.workMets - 1)) * kg * (min / 60) * 1.05;
 }
 
 function renderBalance(eaten) {
+  const s = state.settings;
   const bmr = bmrFor(state.date);
   const move = state.burn.reduce((a, b) => a + num(b.kcal), 0);
+  const workMin = state.work.reduce((a, w) => a + num(w.min), 0);
+  const extra = workKcal(workMin);
   const el = $('#balance');
+  const yesterdayBtn = needYesterday() ? '<button type="button" class="btn" id="goYesterday">🌅 昨日のムーブと施術を入れる</button>' : '';
   if (!bmr) {
-    el.innerHTML = '<p class="muted small">体組成タブでInBodyの基礎代謝量を記録すると、消費カロリーと収支が出ます</p>';
+    el.innerHTML = '<p class="muted small">体組成タブでInBodyの基礎代謝量を記録すると、消費カロリーと収支が出ます</p>' + yesterdayBtn;
+    bindBalance();
     return;
   }
-  const out = bmr.kcal + move;
-  const diff = eaten - out;
+  const low = bmr.kcal + move;
+  const high = low + extra;
+  const mid = low + extra * s.workShare;
+  const sign = (d) => (d > 0 ? '+' : d < 0 ? '−' : '±') + r0(Math.abs(d));
+  const diff = eaten - mid;
+  const ranged = extra > 0;
   el.innerHTML = `
+    ${yesterdayBtn}
     <div class="balance-row">
-      <span class="lbl">消費 <b>${r0(out)}</b> kcal</span>
-      <button type="button" class="move-btn" id="moveBtn">⌚ ムーブ ${state.burn.length ? `${r0(move)}` : '入力'}</button>
+      <span class="lbl">消費 ${ranged ? '約' : ''}<b>${r0(mid)}</b> kcal</span>
+      <button type="button" class="move-btn" id="moveBtn">⌚ ムーブ ${state.burn.length ? r0(move) : '入力'}</button>
     </div>
-    <p class="detail">基礎代謝 ${r0(bmr.kcal)}（InBody ${bmr.date.slice(5).replace('-', '/')}）＋ ムーブ ${state.burn.length ? r0(move) : '未入力'}</p>
+    ${ranged ? `<p class="detail">幅 ${r0(low)}〜${r0(high)}（時計だけ〜施術を全部足した場合）</p>` : ''}
+    <p class="detail">基礎代謝 ${r0(bmr.kcal)}（InBody ${bmr.date.slice(5).replace('-', '/')}）＋ ムーブ ${state.burn.length ? r0(move) : '未入力'}${ranged ? ` ＋ 施術補正 ${r0(extra * s.workShare)}（${workMin}分）` : ''}</p>
+    <div class="work-row">
+      <span class="lbl">💆 施術</span>
+      ${[60, 90, 120].map((m) => `<button type="button" class="work-btn" data-work="${m}">＋${m}分</button>`).join('')}
+    </div>
+    ${state.work.length ? `<div class="work-list">${state.work.map((w) => `<button type="button" class="work-chip" data-del-work="${w.id}">${w.min}分 ×</button>`).join('')}</div>` : ''}
     <div class="balance-row">
       <span class="lbl">収支（摂取 − 消費）</span>
-      <span class="balance-num ${diff < 0 ? 'minus' : 'plus'}">${diff > 0 ? '+' : diff < 0 ? '−' : '±'}${r0(Math.abs(diff))}<small> kcal</small></span>
+      <span class="balance-num ${diff < 0 ? 'minus' : 'plus'}">${sign(diff)}<small> kcal</small></span>
     </div>
-    ${state.burn.length ? '' : '<p class="detail">ムーブは夜か翌朝に入れると正確です（‹ で前の日に戻れます）</p>'}`;
-  $('#moveBtn').addEventListener('click', openMove);
+    ${ranged ? `<p class="detail" style="text-align:right">幅 ${sign(eaten - high)} 〜 ${sign(eaten - low)}</p>` : ''}
+    ${state.burn.length ? '' : '<p class="detail">ムーブは翌朝、‹ で前の日に戻って入れてください</p>'}`;
+  bindBalance();
+}
+
+// 朝（12時前）に今日を見ていて、昨日のムーブが未入力なら「昨日の分」ボタンを出す
+function needYesterday() {
+  return state.date === todayStr() && new Date().getHours() < 12 && !state.yesterdayHasMove;
+}
+function checkYesterday() {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  if (state.unsubYesterday) state.unsubYesterday();
+  state.unsubYesterday = store.watchLogs(todayStr(d), (logs) => {
+    state.yesterdayHasMove = logs.some((l) => l.kind === 'burn');
+    renderHome();
+  });
+}
+
+function bindBalance() {
+  $('#moveBtn')?.addEventListener('click', openMove);
+  $('#goYesterday')?.addEventListener('click', () => {
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    state.date = todayStr(d);
+    watchDay();
+    window.scrollTo(0, 0);
+  });
+  $('#balance').querySelectorAll('[data-work]').forEach((b) => b.addEventListener('click', async () => {
+    const min = Number(b.dataset.work);
+    const time = state.date === todayStr() ? nowTime() : '12:00';
+    const id = await store.addLog({ date: state.date, time, kind: 'work', name: `💆 施術 ${min}分`, min, kcal: 0, p: 0, f: 0, c: 0 });
+    showToast(`施術 ${min}分 を記録`, () => store.deleteLog(id));
+  }));
+  $('#balance').querySelectorAll('[data-del-work]').forEach((b) => b.addEventListener('click', () => {
+    if (confirm(`${b.textContent.replace(' ×', '')} の施術を消しますか？`)) store.deleteLog(b.dataset.delWork);
+  }));
 }
 
 function openMove() {
@@ -705,6 +765,7 @@ function fillSettingsForm() {
   set('cmin', s.c.min); set('cmax', s.c.max);
   set('nightFatMax', s.nightFatMax); set('nightStartHour', s.nightStartHour);
   set('waterGoal', s.waterGoal);
+  set('workMets', s.workMets);
 }
 $('#settingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -717,6 +778,8 @@ $('#settingsForm').addEventListener('submit', async (e) => {
     nightFatMax: g('nightFatMax'),
     nightStartHour: g('nightStartHour'),
     waterGoal: g('waterGoal') || 2000,
+    workMets: g('workMets') || 3.5,
+    workShare: state.settings.workShare ?? 0.5,
   };
   await store.saveSettings(state.settings);
   renderHome();

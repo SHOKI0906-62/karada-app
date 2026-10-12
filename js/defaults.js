@@ -9,6 +9,8 @@ export const DEFAULT_SETTINGS = {
   nightFatMax: 15,   // 夜の脂質の上限(g)
   nightStartHour: 17, // この時刻以降を「夜」として数える
   waterGoal: 2000,    // 1日の水分の目標(ml)
+  workMets: 3.5,      // 施術（スポーツマッサージ）の強さ（METs）
+  workShare: 0.5,     // 施術の上乗せのうち、時計が拾えていないと考える割合（目安の計算に使う）
 };
 
 // 1食材 = { name, kcal, p, f, c, w }（その量での値）

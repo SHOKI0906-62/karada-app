@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <link rel="stylesheet" href="css/style.css?v=9">
+  <link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
   <!-- ログイン画面 -->
@@ -119,6 +119,7 @@
         <div class="range-row"><span>夜の脂質</span><input name="nightFatMax" inputmode="decimal">g以内</div>
         <div class="range-row"><span>夜とする時刻</span><input name="nightStartHour" inputmode="numeric">時から</div>
         <div class="range-row"><span>水分の目標</span><input name="waterGoal" inputmode="numeric">ml</div>
+        <div class="range-row"><span>施術の強さ（METs）</span><input name="workMets" inputmode="decimal"></div>
         <button class="btn primary">保存</button>
       </form>
 
@@ -145,6 +146,6 @@
   <dialog id="sheet"><form method="dialog" id="sheetForm"></form></dialog>
   <div id="toast" class="toast" hidden><span id="toastText"></span><button id="toastUndo">取り消し</button></div>
 
-  <script type="module" src="js/app.js?v=9"></script>
+  <script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>

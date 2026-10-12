@@ -300,3 +300,9 @@ textarea {
 .balance-num.plus { color: var(--accent); }
 .balance .detail { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
 .move-btn { border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 8px 12px; font-weight: 700; min-height: 44px; }
+.work-row { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; }
+.work-row .lbl { font-size: 14px; color: var(--muted); margin-right: 2px; white-space: nowrap; }
+.work-btn { flex: 1; min-height: 44px; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; font-weight: 700; color: var(--text); white-space: nowrap; padding: 0 4px; }
+.work-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.work-chip { border: none; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 6px 12px; font-weight: 700; }
+#goYesterday { margin: 0 0 10px; }
